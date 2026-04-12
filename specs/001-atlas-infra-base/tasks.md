@@ -78,18 +78,18 @@
 
 ### Implementation for User Story 1
 
-- [ ] T036 [US1] Implementar `apps/api/src/health.ts` — GET /api/v1/health: checa Postgres (SELECT 1), Redis (PING), n8n (fetch N8N_HEALTH_URL com timeout 3s). Retorna status por dependência + versão do package.json + lista de módulos habilitados. Retorna 503 se Postgres down.
-- [ ] T037 [US1] Criar seed de admin no final da migration `0001_atlas_infra_base.sql` — INSERT em atlas.users com SEED_ADMIN_EMAIL/PASSWORD (hash argon2 via script Node), role='diretor', condicionado a tabela vazia
-- [ ] T038 [US1] Inicializar `apps/web/` como projeto Vite+React+TS: `vite.config.ts` (proxy /api → localhost:3005), `tailwind.config.ts` (importa preset do @atlas/ui), `src/main.tsx`, `src/App.tsx` (React Router com rota `/login`)
-- [ ] T039 [P] [US1] Criar `packages/ui/src/tokens/colors.ts` — tokens de cor do Atlas: paleta quente areia (#F2EDE4 fundo light, #1a1a2e fundo dark), accent --acxe=#0077cc, --q2p=#1a9944, status --warn=#d97706, --crit=#dc2626, --ndf=#7c3aed. CSS variables com set light e dark.
-- [ ] T040 [P] [US1] Criar `packages/ui/tailwind.config.ts` — preset Tailwind com cores do Atlas, fontes (DM Sans body, Fraunces headings serif, Inconsolata/IBM Plex Mono dados numéricos), darkMode: 'class', extend com tokens
-- [ ] T041 [P] [US1] Copiar componentes shadcn base pra `packages/ui/src/components/`: Button, Input, Label, Card, Toast (via CLI shadcn ou manual). Verificar que suportam dark mode via CSS variables.
-- [ ] T042 [P] [US1] Implementar `packages/ui/src/components/ThemeToggle.tsx` — toggle light/dark/system na topbar. Lê `prefers-color-scheme` como default, salva preferência em localStorage, aplica classe `dark` no `<html>`
-- [ ] T043 [US1] Implementar `apps/web/src/pages/LoginPage.tsx` — form e-mail + senha, submit via fetch POST /api/v1/auth/login, feedback de erro, loading state
-- [ ] T044 [US1] Atualizar `apps/api/Dockerfile` — multi-stage build: estágio 1 pnpm install + build TS, estágio 2 node:20-alpine copia dist + node_modules
-- [ ] T045 [P] [US1] Criar `apps/web/Dockerfile` — multi-stage: estágio 1 pnpm install + vite build, estágio 2 nginx:alpine copia dist + nginx.conf
-- [ ] T046 [US1] Atualizar `deploy/docker-compose.yml` — adicionar services api e web com build context, mounts pra hot-reload, depends_on postgres+redis
-- [ ] T047 [US1] Escrever teste Vitest+Supertest `apps/api/src/__tests__/health.test.ts` — GET /api/v1/health retorna 200 com status healthy e lista de módulos
+- [x] T036 [US1] Implementar `apps/api/src/health.ts` — GET /api/v1/health: checa Postgres (SELECT 1), Redis (PING), n8n (fetch N8N_HEALTH_URL com timeout 3s). Retorna status por dependência + versão do package.json + lista de módulos habilitados. Retorna 503 se Postgres down.
+- [x] T037 [US1] Criar seed de admin no final da migration `0001_atlas_infra_base.sql` — INSERT em atlas.users com SEED_ADMIN_EMAIL/PASSWORD (hash argon2 via script Node), role='diretor', condicionado a tabela vazia
+- [x] T038 [US1] Inicializar `apps/web/` como projeto Vite+React+TS: `vite.config.ts` (proxy /api → localhost:3005), `tailwind.config.ts` (importa preset do @atlas/ui), `src/main.tsx`, `src/App.tsx` (React Router com rota `/login`)
+- [x] T039 [P] [US1] Criar `packages/ui/src/tokens/colors.ts` — tokens de cor do Atlas: paleta quente areia (#F2EDE4 fundo light, #1a1a2e fundo dark), accent --acxe=#0077cc, --q2p=#1a9944, status --warn=#d97706, --crit=#dc2626, --ndf=#7c3aed. CSS variables com set light e dark.
+- [x] T040 [P] [US1] Criar `packages/ui/tailwind.config.ts` — preset Tailwind com cores do Atlas, fontes (DM Sans body, Fraunces headings serif, Inconsolata/IBM Plex Mono dados numéricos), darkMode: 'class', extend com tokens
+- [x] T041 [P] [US1] Copiar componentes shadcn base pra `packages/ui/src/components/`: Button, Input, Label, Card, Toast (via CLI shadcn ou manual). Verificar que suportam dark mode via CSS variables.
+- [x] T042 [P] [US1] Implementar `packages/ui/src/components/ThemeToggle.tsx` — toggle light/dark/system na topbar. Lê `prefers-color-scheme` como default, salva preferência em localStorage, aplica classe `dark` no `<html>`
+- [x] T043 [US1] Implementar `apps/web/src/pages/LoginPage.tsx` — form e-mail + senha, submit via fetch POST /api/v1/auth/login, feedback de erro, loading state
+- [x] T044 [US1] Atualizar `apps/api/Dockerfile` — multi-stage build: estágio 1 pnpm install + build TS, estágio 2 node:20-alpine copia dist + node_modules
+- [x] T045 [P] [US1] Criar `apps/web/Dockerfile` — multi-stage: estágio 1 pnpm install + vite build, estágio 2 nginx:alpine copia dist + nginx.conf
+- [x] T046 [US1] Atualizar `deploy/docker-compose.yml` — adicionar services api e web com build context, mounts pra hot-reload, depends_on postgres+redis
+- [x] T047 [US1] Escrever teste Vitest+Supertest `apps/api/src/__tests__/health.test.ts` — GET /api/v1/health retorna 200 com status healthy e lista de módulos
 
 **Checkpoint**: `docker compose up` sobe tudo. Navegador em http://localhost:5173 mostra tela de login. GET localhost:3005/api/v1/health retorna healthy.
 
