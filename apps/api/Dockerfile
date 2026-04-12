@@ -11,12 +11,15 @@ COPY packages/core/ packages/core/
 COPY packages/auth/ packages/auth/
 COPY packages/db/ packages/db/
 COPY apps/api/ apps/api/
-RUN pnpm --filter @atlas/api build
+RUN pnpm --filter @atlas/core build && \
+    pnpm --filter @atlas/db build && \
+    pnpm --filter @atlas/auth build && \
+    pnpm --filter @atlas/api build
 
 FROM node:20-alpine
 RUN corepack enable && corepack prepare pnpm@latest --activate
 WORKDIR /app
-COPY --from=builder /app/pnpm-lock.yaml /app/pnpm-workspace.yaml /app/package.json ./
+COPY --from=builder /app/pnpm-lock.yaml /app/pnpm-workspace.yaml /app/package.json /app/tsconfig.base.json ./
 COPY --from=builder /app/packages/core/package.json packages/core/
 COPY --from=builder /app/packages/auth/package.json packages/auth/
 COPY --from=builder /app/packages/db/package.json packages/db/

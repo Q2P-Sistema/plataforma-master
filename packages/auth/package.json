@@ -5,6 +5,15 @@
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc"
+  },
   "description": "JWT cookies + roles (operador/gestor/diretor) + 2FA TOTP",
   "dependencies": {
     "argon2": "^0.41.0",
