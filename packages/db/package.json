@@ -18,11 +18,6 @@
     "studio": "drizzle-kit studio"
   },
   "description": "Migrations centralizadas + contratos de views do schema shared",
-  "scripts": {
-    "generate": "drizzle-kit generate",
-    "migrate": "drizzle-kit migrate",
-    "studio": "drizzle-kit studio"
-  },
   "dependencies": {
     "drizzle-orm": "^0.38.0",
     "pg": "^8.13.0",
