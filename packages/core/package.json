@@ -16,6 +16,7 @@
   },
   "description": "Utilitários compartilhados sem estado: db pool, logger, config",
   "dependencies": {
+    "@sendgrid/mail": "^8.1.0",
     "dotenv": "^16.4.0",
     "drizzle-orm": "^0.38.0",
     "ioredis": "^5.4.0",

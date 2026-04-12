@@ -183,6 +183,9 @@ importers:
 
   packages/core:
     dependencies:
+      '@sendgrid/mail':
+        specifier: ^8.1.0
+        version: 8.1.6
       dotenv:
         specifier: ^16.4.0
         version: 16.6.1
