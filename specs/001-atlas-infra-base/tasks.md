@@ -19,21 +19,21 @@
 
 **Purpose**: Configurar dependências, tooling e estrutura base do monorepo (já parcialmente feito na Entrega 1).
 
-- [ ] T001 Instalar dependências dos workspaces: `pnpm install` na raiz (valida que pnpm-workspace.yaml resolve todos os packages)
-- [ ] T002 [P] Criar `packages/core/tsconfig.json` estendendo `tsconfig.base.json` com paths de workspace
-- [ ] T003 [P] Criar `packages/auth/tsconfig.json` estendendo `tsconfig.base.json`
-- [ ] T004 [P] Criar `packages/ui/tsconfig.json` estendendo `tsconfig.base.json` com JSX react-jsx
-- [ ] T005 [P] Criar `packages/db/tsconfig.json` estendendo `tsconfig.base.json`
-- [ ] T006 [P] Criar `apps/api/tsconfig.json` estendendo `tsconfig.base.json`
-- [ ] T007 [P] Criar `apps/web/tsconfig.json` estendendo `tsconfig.base.json` com JSX react-jsx
-- [ ] T008 [P] Adicionar dependências em `packages/core/package.json`: pg, drizzle-orm, pino, ioredis, zod, dotenv
-- [ ] T009 [P] Adicionar dependências em `packages/auth/package.json`: argon2, otplib, qrcode, @atlas/core
-- [ ] T010 [P] Adicionar dependências em `packages/ui/package.json`: react, tailwindcss, class-variance-authority, clsx, tailwind-merge
-- [ ] T011 [P] Adicionar dependências em `packages/db/package.json`: drizzle-orm, drizzle-kit, pg, @atlas/core
-- [ ] T012 [P] Adicionar dependências em `apps/api/package.json`: express, cors, cookie-parser, csurf, express-rate-limit, @atlas/core, @atlas/auth, @atlas/db
-- [ ] T013 [P] Adicionar dependências em `apps/web/package.json`: react, react-dom, react-router-dom, zustand, @tanstack/react-query, @atlas/ui
-- [ ] T014 Criar `deploy/docker-compose.yml` com Postgres 16 (porta 5432) + Redis 8 (porta 6379) pra dev local
-- [ ] T015 Criar `.env.example` na raiz com todas as variáveis documentadas (DATABASE_URL, REDIS_URL, SESSION_SECRET, SEED_ADMIN_EMAIL, SEED_ADMIN_PASSWORD, N8N_HEALTH_URL, MODULE_*_ENABLED)
+- [x] T001 Instalar dependências dos workspaces: `pnpm install` na raiz (valida que pnpm-workspace.yaml resolve todos os packages)
+- [x] T002 [P] Criar `packages/core/tsconfig.json` estendendo `tsconfig.base.json` com paths de workspace
+- [x] T003 [P] Criar `packages/auth/tsconfig.json` estendendo `tsconfig.base.json`
+- [x] T004 [P] Criar `packages/ui/tsconfig.json` estendendo `tsconfig.base.json` com JSX react-jsx
+- [x] T005 [P] Criar `packages/db/tsconfig.json` estendendo `tsconfig.base.json`
+- [x] T006 [P] Criar `apps/api/tsconfig.json` estendendo `tsconfig.base.json`
+- [x] T007 [P] Criar `apps/web/tsconfig.json` estendendo `tsconfig.base.json` com JSX react-jsx
+- [x] T008 [P] Adicionar dependências em `packages/core/package.json`: pg, drizzle-orm, pino, ioredis, zod, dotenv
+- [x] T009 [P] Adicionar dependências em `packages/auth/package.json`: argon2, otplib, qrcode, @atlas/core
+- [x] T010 [P] Adicionar dependências em `packages/ui/package.json`: react, tailwindcss, class-variance-authority, clsx, tailwind-merge
+- [x] T011 [P] Adicionar dependências em `packages/db/package.json`: drizzle-orm, drizzle-kit, pg, @atlas/core
+- [x] T012 [P] Adicionar dependências em `apps/api/package.json`: express, cors, cookie-parser, csurf, express-rate-limit, @atlas/core, @atlas/auth, @atlas/db
+- [x] T013 [P] Adicionar dependências em `apps/web/package.json`: react, react-dom, react-router-dom, zustand, @tanstack/react-query, @atlas/ui
+- [x] T014 Criar `deploy/docker-compose.yml` com Postgres 16 (porta 5432) + Redis 8 (porta 6379) pra dev local
+- [x] T015 Criar `.env.example` na raiz com todas as variáveis documentadas (DATABASE_URL, REDIS_URL, SESSION_SECRET, SEED_ADMIN_EMAIL, SEED_ADMIN_PASSWORD, N8N_HEALTH_URL, MODULE_*_ENABLED)
 
 **Checkpoint**: `pnpm install` roda sem erro, tsconfig resolve paths entre workspaces, `docker compose up -d` sobe Postgres+Redis.
 
@@ -45,26 +45,26 @@
 
 **CRITICAL**: Nenhum trabalho de user story começa antes desta fase estar completa.
 
-- [ ] T016 Implementar `packages/core/src/config.ts` — loader de env vars com validação Zod (DATABASE_URL, REDIS_URL, SESSION_SECRET, N8N_HEALTH_URL, MODULE flags)
-- [ ] T017 Implementar `packages/core/src/db.ts` — Drizzle client (pool pg, connection string de config)
-- [ ] T018 [P] Implementar `packages/core/src/logger.ts` — factory Pino (JSON structured, redaction de campos sensíveis: password, token, secret, cpf, cnpj)
-- [ ] T019 [P] Implementar `packages/core/src/redis.ts` — ioredis client (connection string de config, reconnect strategy)
-- [ ] T020 Implementar `packages/core/src/index.ts` — exportar db, logger, redis, config
-- [ ] T021 Implementar `packages/db/src/schemas/atlas.ts` — Drizzle schema pra `atlas.users` e `atlas.sessions` conforme data-model.md (todos os campos, tipos, constraints, indexes)
-- [ ] T022 [P] Implementar `packages/db/src/schemas/shared.ts` — Drizzle schema pra `shared.audit_log` conforme data-model.md (BIGSERIAL PK, campos, indexes)
-- [ ] T023 Implementar `packages/db/src/index.ts` — exportar schemas e tipos inferidos
-- [ ] T024 Criar `packages/db/drizzle.config.ts` — config do Drizzle Kit (connection string, schemas, out dir)
-- [ ] T025 Gerar migration `packages/db/migrations/0001_atlas_infra_base.sql` via `drizzle-kit generate` — incluir CREATE SCHEMA atlas/shared, tabelas, indexes, triggers de updated_at, trigger de audit_log em atlas.users, trigger de imutabilidade em shared.audit_log, REVOKE UPDATE/DELETE em audit_log
-- [ ] T026 Implementar `packages/auth/src/password.ts` — hash e verify com argon2id
-- [ ] T027 [P] Implementar `packages/auth/src/session.ts` — criar sessão (INSERT atlas.sessions), destruir sessão (DELETE), validar sessão (SELECT + check expiração 8h inatividade / 24h absoluta), touch sessão (UPDATE last_active_at)
-- [ ] T028 [P] Implementar `packages/auth/src/csrf.ts` — gerar e validar CSRF token (double-submit cookie pattern)
-- [ ] T029 Implementar `packages/auth/src/auth.middleware.ts` — middleware Express: requireAuth (valida cookie atlas_session, carrega user, atualiza last_active_at), requireRole(role) (checa user.role)
-- [ ] T030 Implementar `packages/auth/src/rate-limit.ts` — rate limit de login: Redis-backed, 5 tentativas / 10 min por email+IP, bloqueio 30 min
-- [ ] T031 Implementar `packages/auth/src/index.ts` — exportar middleware, password, session, csrf, rate-limit
-- [ ] T032 Implementar `apps/api/src/envelope.ts` — middleware de response envelope `{data, error, meta}` + error format `{code, message, fields?}`
-- [ ] T033 [P] Implementar `apps/api/src/error-handler.ts` — global error handler Express (gera Trace ID, loga Pino, retorna envelope com Trace ID, sanitiza stack em prod)
-- [ ] T034 Implementar `apps/api/src/modules.ts` — leitor de feature flags MODULE_*_ENABLED de config, exporta lista de módulos com {id, name, enabled}
-- [ ] T035 Implementar `apps/api/src/server.ts` — Express setup: CORS, cookie-parser, JSON body, CSRF middleware, envelope, error handler, health route, mount de rotas auth/admin, dynamic module mount (placeholder)
+- [x] T016 Implementar `packages/core/src/config.ts` — loader de env vars com validação Zod (DATABASE_URL, REDIS_URL, SESSION_SECRET, N8N_HEALTH_URL, MODULE flags)
+- [x] T017 Implementar `packages/core/src/db.ts` — Drizzle client (pool pg, connection string de config)
+- [x] T018 [P] Implementar `packages/core/src/logger.ts` — factory Pino (JSON structured, redaction de campos sensíveis: password, token, secret, cpf, cnpj)
+- [x] T019 [P] Implementar `packages/core/src/redis.ts` — ioredis client (connection string de config, reconnect strategy)
+- [x] T020 Implementar `packages/core/src/index.ts` — exportar db, logger, redis, config
+- [x] T021 Implementar `packages/db/src/schemas/atlas.ts` — Drizzle schema pra `atlas.users` e `atlas.sessions` conforme data-model.md (todos os campos, tipos, constraints, indexes)
+- [x] T022 [P] Implementar `packages/db/src/schemas/shared.ts` — Drizzle schema pra `shared.audit_log` conforme data-model.md (BIGSERIAL PK, campos, indexes)
+- [x] T023 Implementar `packages/db/src/index.ts` — exportar schemas e tipos inferidos
+- [x] T024 Criar `packages/db/drizzle.config.ts` — config do Drizzle Kit (connection string, schemas, out dir)
+- [x] T025 Gerar migration `packages/db/migrations/0001_atlas_infra_base.sql` via `drizzle-kit generate` — incluir CREATE SCHEMA atlas/shared, tabelas, indexes, triggers de updated_at, trigger de audit_log em atlas.users, trigger de imutabilidade em shared.audit_log, REVOKE UPDATE/DELETE em audit_log
+- [x] T026 Implementar `packages/auth/src/password.ts` — hash e verify com argon2id
+- [x] T027 [P] Implementar `packages/auth/src/session.ts` — criar sessão (INSERT atlas.sessions), destruir sessão (DELETE), validar sessão (SELECT + check expiração 8h inatividade / 24h absoluta), touch sessão (UPDATE last_active_at)
+- [x] T028 [P] Implementar `packages/auth/src/csrf.ts` — gerar e validar CSRF token (double-submit cookie pattern)
+- [x] T029 Implementar `packages/auth/src/auth.middleware.ts` — middleware Express: requireAuth (valida cookie atlas_session, carrega user, atualiza last_active_at), requireRole(role) (checa user.role)
+- [x] T030 Implementar `packages/auth/src/rate-limit.ts` — rate limit de login: Redis-backed, 5 tentativas / 10 min por email+IP, bloqueio 30 min
+- [x] T031 Implementar `packages/auth/src/index.ts` — exportar middleware, password, session, csrf, rate-limit
+- [x] T032 Implementar `apps/api/src/envelope.ts` — middleware de response envelope `{data, error, meta}` + error format `{code, message, fields?}`
+- [x] T033 [P] Implementar `apps/api/src/error-handler.ts` — global error handler Express (gera Trace ID, loga Pino, retorna envelope com Trace ID, sanitiza stack em prod)
+- [x] T034 Implementar `apps/api/src/modules.ts` — leitor de feature flags MODULE_*_ENABLED de config, exporta lista de módulos com {id, name, enabled}
+- [x] T035 Implementar `apps/api/src/server.ts` — Express setup: CORS, cookie-parser, JSON body, CSRF middleware, envelope, error handler, health route, mount de rotas auth/admin, dynamic module mount (placeholder)
 
 **Checkpoint**: `pnpm --filter @atlas/db migrate` cria as tabelas. `pnpm --filter @atlas/api dev` sobe o servidor. `GET /api/v1/health` retorna `{status: "healthy"}`.
 

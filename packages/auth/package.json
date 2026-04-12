@@ -3,5 +3,16 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "JWT + roles (operador/gestor/diretor)"
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "description": "JWT cookies + roles (operador/gestor/diretor) + 2FA TOTP",
+  "dependencies": {
+    "argon2": "^0.41.0",
+    "otplib": "^12.0.1",
+    "qrcode": "^1.5.4",
+    "@atlas/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/qrcode": "^1.5.0"
+  }
 }
