@@ -1,0 +1,88 @@
+version: "3.8"
+
+services:
+  api:
+    image: ${DOCKER_HUB_USER:-atlas}/atlas-api:${TAG:-staging}
+    networks:
+      - swarm_public
+      - staging_internal
+    environment:
+      DATABASE_URL: ${STAGING_DATABASE_URL}
+      REDIS_URL: ${STAGING_REDIS_URL}
+      SESSION_SECRET: ${STAGING_SESSION_SECRET}
+      SEED_ADMIN_EMAIL: ${STAGING_SEED_ADMIN_EMAIL}
+      SEED_ADMIN_PASSWORD: ${STAGING_SEED_ADMIN_PASSWORD}
+      N8N_HEALTH_URL: ${STAGING_N8N_HEALTH_URL:-}
+      NODE_ENV: staging
+      API_PORT: "3005"
+      MODULE_HEDGE_ENABLED: ${MODULE_HEDGE_ENABLED:-false}
+      MODULE_STOCKBRIDGE_ENABLED: ${MODULE_STOCKBRIDGE_ENABLED:-false}
+      MODULE_BREAKINGPOINT_ENABLED: ${MODULE_BREAKINGPOINT_ENABLED:-false}
+      MODULE_CLEVEL_ENABLED: ${MODULE_CLEVEL_ENABLED:-false}
+      MODULE_COMEXINSIGHT_ENABLED: ${MODULE_COMEXINSIGHT_ENABLED:-false}
+      MODULE_COMEXFLOW_ENABLED: ${MODULE_COMEXFLOW_ENABLED:-false}
+      MODULE_FORECAST_ENABLED: ${MODULE_FORECAST_ENABLED:-false}
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: start-first
+      rollback_config:
+        parallelism: 1
+        order: start-first
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.atlas-staging-api.rule=Host(`${STAGING_DOMAIN}`) && PathPrefix(`/api`)"
+        - "traefik.http.routers.atlas-staging-api.entrypoints=websecure"
+        - "traefik.http.routers.atlas-staging-api.tls.certresolver=letsencrypt"
+        - "traefik.http.services.atlas-staging-api.loadbalancer.server.port=3005"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3005/api/v1/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  web:
+    image: ${DOCKER_HUB_USER:-atlas}/atlas-web:${TAG:-staging}
+    networks:
+      - swarm_public
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: start-first
+      rollback_config:
+        parallelism: 1
+        order: start-first
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.atlas-staging-web.rule=Host(`${STAGING_DOMAIN}`)"
+        - "traefik.http.routers.atlas-staging-web.entrypoints=websecure"
+        - "traefik.http.routers.atlas-staging-web.tls.certresolver=letsencrypt"
+        - "traefik.http.services.atlas-staging-web.loadbalancer.server.port=80"
+        - "traefik.http.routers.atlas-staging-web.priority=1"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:80/"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+networks:
+  swarm_public:
+    external: true
+  staging_internal:
+    driver: overlay

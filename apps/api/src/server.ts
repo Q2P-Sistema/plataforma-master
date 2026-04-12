@@ -4,10 +4,13 @@ import cookieParser from 'cookie-parser';
 import { loadConfig, createLogger } from '@atlas/core';
 import { globalErrorHandler } from './error-handler.js';
 import healthRouter from './health.js';
+import authRouter from './routes/auth.routes.js';
+import adminRouter from './routes/admin.routes.js';
+import { registerModuleRoutes } from './modules.js';
 
 const config = loadConfig();
 const logger = createLogger('api');
-const app = express();
+const app: express.Express = express();
 
 // Global middleware
 app.use(cors({ origin: true, credentials: true }));
@@ -16,6 +19,11 @@ app.use(cookieParser());
 
 // Routes
 app.use(healthRouter);
+app.use(authRouter);
+app.use(adminRouter);
+
+// Module routes (feature-flag gated)
+registerModuleRoutes(app);
 
 // Global error handler (must be last)
 app.use(globalErrorHandler);

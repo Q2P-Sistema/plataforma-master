@@ -1,4 +1,3 @@
-import { eq } from 'drizzle-orm';
 import { getConfig, getDb, createLogger } from '@atlas/core';
 import { users } from '@atlas/db';
 import { hashPassword } from '@atlas/auth';

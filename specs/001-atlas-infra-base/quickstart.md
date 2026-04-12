@@ -81,15 +81,42 @@ Turbo sobe `apps/api` (porta 3005) e `apps/web` (porta 5173) com hot-reload.
 
 ## Deploy em Staging
 
+Staging roda no mesmo Swarm que producao, isolado por:
+- Stack separada (`atlas-staging` vs `atlas`)
+- Banco de dados separado (`STAGING_DATABASE_URL`)
+- Redis separado ou prefixado (`STAGING_REDIS_URL`)
+- Dominio separado via Traefik (`STAGING_DOMAIN`)
+- Network interna propria (`staging_internal`)
+
+### Variaveis de ambiente
+
+Criar um `.env.staging` no manager-01 com:
+- `STAGING_DATABASE_URL` — Postgres staging (banco `atlas_staging`)
+- `STAGING_REDIS_URL` — Redis staging
+- `STAGING_SESSION_SECRET` — secret diferente do prod
+- `STAGING_SEED_ADMIN_EMAIL` / `STAGING_SEED_ADMIN_PASSWORD`
+- `STAGING_DOMAIN` — ex: `staging.acxe.com.br`
+- `DOCKER_HUB_USER`
+
+### Deploy manual
+
 ```bash
-# Build e push de imagens
+# Build e push de imagens com tag :staging
 docker build -t <dockerhub-user>/atlas-api:staging -f apps/api/Dockerfile .
 docker build -t <dockerhub-user>/atlas-web:staging -f apps/web/Dockerfile .
 docker push <dockerhub-user>/atlas-api:staging
 docker push <dockerhub-user>/atlas-web:staging
 
 # Deploy no Swarm (via SSH ou Portainer)
-docker stack deploy -c deploy/atlas-staging.stack.yml atlas-staging
+cd deploy
+docker stack deploy -c atlas-staging.stack.yml --with-registry-auth atlas-staging
+```
+
+### Verificar
+
+```bash
+docker stack services atlas-staging
+curl -s https://staging.acxe.com.br/api/v1/health | jq .data.status
 ```
 
 ## Deploy em Produção
@@ -100,4 +127,23 @@ Automático via GitHub Actions no merge em `main`. Pipeline:
 3. Push pra Docker Hub
 4. Portainer/Swarm atualiza a stack `atlas`
 
-Rollback: `docker service update --rollback atlas_api` + `docker service update --rollback atlas_web`
+### Rollback
+
+Se o deploy apresentar problemas, o rollback e imediato via Swarm:
+
+```bash
+# Reverter API para a versao anterior
+docker service update --rollback atlas_api
+
+# Reverter Web para a versao anterior
+docker service update --rollback atlas_web
+```
+
+O rollback do Docker Swarm e instantaneo (reverte para a task anterior).
+O stack.yml configura `failure_action: rollback` no update_config, entao se o healthcheck falhar durante o deploy, o Swarm reverte automaticamente.
+
+Para verificar o status apos rollback:
+```bash
+docker service ps atlas_api --no-trunc
+docker service ps atlas_web --no-trunc
+```

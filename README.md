@@ -2,7 +2,7 @@
 
 Monólito modular que consolida 7 módulos internos de operação sobre um único banco Postgres compartilhado. Escrito em TypeScript, organizado como monorepo pnpm + Turborepo, deployado via Docker Swarm + Traefik.
 
-> **Status:** scaffolding inicial (Entrega 1). Sem código de domínio ainda — só a casca do monorepo.
+> **Status:** Infraestrutura base completa (spec 001). Auth, 2FA, admin CRUD, audit log, feature flags, CI/CD, deploy. Pronto para migrar modulos de dominio.
 
 ## Stack
 
@@ -111,3 +111,21 @@ Decisões maiores detalhadas em **Architecture Decision Records** em [docs/adr/]
 6. **Queries de leitura sempre vão no Postgres, nunca na API OMIE.**
 7. **Cálculo financeiro sempre em TypeScript, nunca em n8n.** Ver [ADR-0006](docs/adr/0006-n8n-como-hub-de-orquestracao.md).
 8. **Identidade visual unificada** em todos os módulos — paleta quente areia, DM Sans + Fraunces. Dark mode como opção do usuário (toggle, default segue SO).
+
+## Quickstart
+
+```bash
+git clone git@github.com:<org>/plataforma-master.git && cd plataforma-master
+cp .env.example .env        # editar DATABASE_URL, REDIS_URL, SESSION_SECRET, SEED_ADMIN_*
+docker compose -f deploy/docker-compose.yml up -d   # Postgres + Redis
+pnpm install
+pnpm dev                    # API :3005 + Web :5173
+```
+
+Detalhes completos em [specs/001-atlas-infra-base/quickstart.md](specs/001-atlas-infra-base/quickstart.md).
+
+## Specs
+
+| Spec | Status | Descricao |
+|------|--------|-----------|
+| [001-atlas-infra-base](specs/001-atlas-infra-base/) | Completa | Auth, 2FA, admin CRUD, audit log, feature flags, CI/CD, deploy, staging |

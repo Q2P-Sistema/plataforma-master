@@ -1,11 +1,18 @@
-import { useState, type FormEvent } from 'react';
+import { useState, type FormEvent, type ChangeEvent } from 'react';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { ThemeToggle } from '@atlas/ui';
+import { useAuthStore } from '../stores/auth.store.js';
 
 export function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const login = useAuthStore((s) => s.login);
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const from = (location.state as any)?.from ?? '/';
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -13,29 +20,16 @@ export function LoginPage() {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/v1/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ email, password }),
-      });
+      const result = await login(email, password);
 
-      const body = await res.json();
-
-      if (!res.ok) {
-        setError(body.error?.message ?? 'Erro ao fazer login');
+      if (result.requires2FA) {
+        navigate('/2fa', { replace: true, state: { tempToken: result.tempToken } });
         return;
       }
 
-      if (body.data?.requires2FA) {
-        // TODO: redirect pra /2fa com tempToken (US3)
-        setError('2FA necessário — funcionalidade em implementação');
-        return;
-      }
-
-      window.location.href = '/';
-    } catch {
-      setError('Erro de conexão com o servidor');
+      navigate(from, { replace: true });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro de conexao com o servidor');
     } finally {
       setLoading(false);
     }
@@ -71,7 +65,7 @@ export function LoginPage() {
               required
               autoComplete="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
               className="w-full px-3 py-2 rounded-lg border border-atlas-border bg-atlas-bg text-atlas-text placeholder:text-atlas-muted focus:outline-none focus:ring-2 focus:ring-acxe"
               placeholder="seu@email.com.br"
             />
@@ -90,7 +84,7 @@ export function LoginPage() {
               required
               autoComplete="current-password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
               className="w-full px-3 py-2 rounded-lg border border-atlas-border bg-atlas-bg text-atlas-text placeholder:text-atlas-muted focus:outline-none focus:ring-2 focus:ring-acxe"
               placeholder="••••••••"
             />
@@ -115,9 +109,9 @@ export function LoginPage() {
         </form>
 
         <p className="text-center text-xs text-atlas-muted mt-6">
-          <a href="/forgot-password" className="hover:text-acxe underline">
+          <Link to="/forgot-password" className="hover:text-acxe underline">
             Esqueci minha senha
-          </a>
+          </Link>
         </p>
       </div>
     </div>

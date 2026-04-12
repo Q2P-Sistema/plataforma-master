@@ -1,4 +1,7 @@
-import { getConfig } from '@atlas/core';
+import type { Express } from 'express';
+import { getConfig, createLogger } from '@atlas/core';
+
+const logger = createLogger('modules');
 
 export interface ModuleInfo {
   id: string;
@@ -37,4 +40,30 @@ export function getModules(): ModuleInfo[] {
 
 export function getEnabledModules(): ModuleInfo[] {
   return getModules().filter((m) => m.enabled);
+}
+
+/**
+ * Register module-specific routes on the Express app.
+ * Only enabled modules get their routes mounted.
+ * Currently a no-op placeholder — each module spec (002-hedge, etc.)
+ * will add its router here when implemented.
+ */
+export function registerModuleRoutes(app: Express): void {
+  const enabled = getEnabledModules();
+
+  if (enabled.length === 0) {
+    logger.info('No modules enabled');
+    return;
+  }
+
+  logger.info(
+    { modules: enabled.map((m) => m.id) },
+    `${enabled.length} module(s) enabled`,
+  );
+
+  // Future: dynamic import of module routers
+  // for (const mod of enabled) {
+  //   const router = await import(`../../modules/${mod.id}/src/routes.js`);
+  //   app.use(`/api/v1/${mod.id}`, router.default);
+  // }
 }

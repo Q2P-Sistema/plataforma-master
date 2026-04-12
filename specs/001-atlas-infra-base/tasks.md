@@ -103,17 +103,17 @@
 
 ### Implementation for User Story 2
 
-- [ ] T048 [US2] Implementar `apps/api/src/routes/auth.routes.ts` — POST /api/v1/auth/login (valida email+senha, cria sessão, set cookie, retorna user data; se 2FA ativo retorna requires2FA+tempToken). POST /api/v1/auth/logout (destroi sessão, limpa cookie). GET /api/v1/auth/me (retorna user autenticado).
-- [ ] T049 [US2] Implementar `apps/web/src/stores/auth.store.ts` — Zustand store: user, isAuthenticated, login(), logout(), checkSession()
-- [ ] T050 [US2] Implementar `apps/web/src/hooks/useAuth.ts` — hook que usa auth store + TanStack Query pra GET /api/v1/auth/me no mount, redirect pra /login se não autenticado
-- [ ] T051 [US2] Implementar `apps/web/src/hooks/useModules.ts` — hook que lê lista de módulos de /api/v1/health, retorna array com {id, name, enabled, icon, path}
-- [ ] T052 [US2] Implementar `packages/ui/src/components/Sidebar.tsx` — 7 itens de módulo, visual diferenciado pra habilitado (link ativo, cor) vs desabilitado (cinza, cursor not-allowed), ícone + nome, colapsa em mobile
-- [ ] T053 [P] [US2] Implementar `packages/ui/src/components/TopBar.tsx` — nome do usuário, badge do perfil (operador/gestor/diretor), botão logout
-- [ ] T054 [P] [US2] Implementar `packages/ui/src/layouts/ShellLayout.tsx` — layout com Sidebar à esquerda + TopBar no topo + área de conteúdo (Outlet do React Router)
-- [ ] T055 [US2] Implementar `apps/web/src/pages/DashboardPage.tsx` — usa ShellLayout, conteúdo mostra welcome message ou redireciona pro primeiro módulo ativo
-- [ ] T056 [P] [US2] Implementar `apps/web/src/components/ModulePlaceholder.tsx` — página "Módulo em implementação" com ícone e nome do módulo
-- [ ] T057 [US2] Atualizar `apps/web/src/App.tsx` — adicionar rotas protegidas: / (DashboardPage), /hedge, /stockbridge, /breakingpoint, /clevel, /comexinsight, /comexflow, /forecast (todas ModulePlaceholder), /login (LoginPage). Guard de autenticação.
-- [ ] T058 [US2] Escrever teste Vitest+Supertest `apps/api/src/__tests__/auth.test.ts` — login com credenciais corretas retorna 200 + cookie, login com credenciais erradas retorna 401, GET /me sem cookie retorna 401, logout limpa sessão
+- [x] T048 [US2] Implementar `apps/api/src/routes/auth.routes.ts` — POST /api/v1/auth/login (valida email+senha, cria sessão, set cookie, retorna user data; se 2FA ativo retorna requires2FA+tempToken). POST /api/v1/auth/logout (destroi sessão, limpa cookie). GET /api/v1/auth/me (retorna user autenticado).
+- [x] T049 [US2] Implementar `apps/web/src/stores/auth.store.ts` — Zustand store: user, isAuthenticated, login(), logout(), checkSession()
+- [x] T050 [US2] Implementar `apps/web/src/hooks/useAuth.ts` — hook que usa auth store + TanStack Query pra GET /api/v1/auth/me no mount, redirect pra /login se não autenticado
+- [x] T051 [US2] Implementar `apps/web/src/hooks/useModules.ts` — hook que lê lista de módulos de /api/v1/health, retorna array com {id, name, enabled, icon, path}
+- [x] T052 [US2] Implementar `packages/ui/src/components/Sidebar.tsx` — 7 itens de módulo, visual diferenciado pra habilitado (link ativo, cor) vs desabilitado (cinza, cursor not-allowed), ícone + nome, colapsa em mobile
+- [x] T053 [P] [US2] Implementar `packages/ui/src/components/TopBar.tsx` — nome do usuário, badge do perfil (operador/gestor/diretor), botão logout
+- [x] T054 [P] [US2] Implementar `packages/ui/src/layouts/ShellLayout.tsx` — layout com Sidebar à esquerda + TopBar no topo + área de conteúdo (Outlet do React Router)
+- [x] T055 [US2] Implementar `apps/web/src/pages/DashboardPage.tsx` — usa ShellLayout, conteúdo mostra welcome message ou redireciona pro primeiro módulo ativo
+- [x] T056 [P] [US2] Implementar `apps/web/src/components/ModulePlaceholder.tsx` — página "Módulo em implementação" com ícone e nome do módulo
+- [x] T057 [US2] Atualizar `apps/web/src/App.tsx` — adicionar rotas protegidas: / (DashboardPage), /hedge, /stockbridge, /breakingpoint, /clevel, /comexinsight, /comexflow, /forecast (todas ModulePlaceholder), /login (LoginPage). Guard de autenticação.
+- [x] T058 [US2] Escrever teste Vitest+Supertest `apps/api/src/__tests__/auth.test.ts` — login com credenciais corretas retorna 200 + cookie, login com credenciais erradas retorna 401, GET /me sem cookie retorna 401, logout limpa sessão
 
 **Checkpoint**: Login com admin seed funciona. Sidebar mostra 7 módulos (todos desabilitados). Clicar mostra placeholder. Logout redireciona pra login.
 
@@ -127,12 +127,12 @@
 
 ### Implementation for User Story 3
 
-- [ ] T059 [US3] Implementar `packages/auth/src/totp.service.ts` — generateSecret(), generateQRCodeDataUrl(secret, email), verifyCode(secret, code). Usa otplib TOTP + qrcode.
-- [ ] T060 [US3] Adicionar rotas em `apps/api/src/routes/auth.routes.ts` — POST /api/v1/auth/verify-2fa (valida tempToken+code, cria sessão real), POST /api/v1/auth/setup-2fa (gera secret+QR, salva totp_secret encriptado), POST /api/v1/auth/confirm-2fa (verifica código, seta totp_enabled=true)
-- [ ] T061 [US3] Implementar `apps/web/src/pages/TwoFactorPage.tsx` — form de 6 dígitos, submit verifica 2FA, redirect pra dashboard
-- [ ] T062 [P] [US3] Implementar `apps/web/src/pages/TwoFactorSetupPage.tsx` — mostra QR code, campo pra digitar código de confirmação, instrução passo-a-passo
-- [ ] T063 [US3] Atualizar `apps/web/src/App.tsx` — rota /2fa (TwoFactorPage), rota /2fa/setup (TwoFactorSetupPage), lógica de redirect: se login retorna requires2FA→/2fa, se user é gestor/diretor sem totp_enabled→/2fa/setup
-- [ ] T064 [US3] Escrever teste `apps/api/src/__tests__/totp.test.ts` — setup gera secret, confirm com código correto ativa, login subsequente pede 2FA, código errado 3x bloqueia
+- [x] T059 [US3] Implementar `packages/auth/src/totp.service.ts` — generateSecret(), generateQRCodeDataUrl(secret, email), verifyCode(secret, code). Usa otplib TOTP + qrcode.
+- [x] T060 [US3] Adicionar rotas em `apps/api/src/routes/auth.routes.ts` — POST /api/v1/auth/verify-2fa (valida tempToken+code, cria sessão real), POST /api/v1/auth/setup-2fa (gera secret+QR, salva totp_secret encriptado), POST /api/v1/auth/confirm-2fa (verifica código, seta totp_enabled=true)
+- [x] T061 [US3] Implementar `apps/web/src/pages/TwoFactorPage.tsx` — form de 6 dígitos, submit verifica 2FA, redirect pra dashboard
+- [x] T062 [P] [US3] Implementar `apps/web/src/pages/TwoFactorSetupPage.tsx` — mostra QR code, campo pra digitar código de confirmação, instrução passo-a-passo
+- [x] T063 [US3] Atualizar `apps/web/src/App.tsx` — rota /2fa (TwoFactorPage), rota /2fa/setup (TwoFactorSetupPage), lógica de redirect: se login retorna requires2FA→/2fa, se user é gestor/diretor sem totp_enabled→/2fa/setup
+- [x] T064 [US3] Escrever teste `apps/api/src/__tests__/totp.test.ts` — setup gera secret, confirm com código correto ativa, login subsequente pede 2FA, código errado 3x bloqueia
 
 **Checkpoint**: Admin (diretor) sem 2FA configurado → primeiro login redireciona pra /2fa/setup. Após scan QR e confirmação de código, próximo login pede código TOTP.
 
@@ -146,13 +146,13 @@
 
 ### Implementation for User Story 4
 
-- [ ] T065 [US4] Implementar `packages/auth/src/auth.service.ts` — createUser(name, email, role), updateUser(id, fields), deactivateUser(id), reactivateUser(id), resetPassword(id), listUsers(). Todas as mutações gravam user_id no contexto da sessão pra trigger de audit log.
-- [ ] T066 [US4] Implementar `apps/api/src/routes/admin.routes.ts` — GET /api/v1/admin/users, POST /api/v1/admin/users, PATCH /api/v1/admin/users/:id, PATCH .../deactivate, .../reactivate, POST .../reset-password. Todas protegidas por requireRole('diretor'). GET /api/v1/admin/audit-log com filtros query.
-- [ ] T067 [US4] Implementar `apps/web/src/pages/AdminUsersPage.tsx` — tabela de usuários (nome, email, perfil, status, último acesso), botões criar/editar/desativar, modal de criação (nome, email, role), modal de confirmação (desativar/reativar)
-- [ ] T068 [P] [US4] Implementar componente `packages/ui/src/components/DataTable.tsx` — tabela genérica reutilizável com sorting, paginação, ações por linha (usado aqui e em módulos futuros)
-- [ ] T069 [P] [US4] Implementar componente `packages/ui/src/components/Modal.tsx` — modal genérico (confirm, form) com overlay, ESC pra fechar, focus trap
-- [ ] T070 [US4] Escrever teste `apps/api/src/__tests__/admin.test.ts` — criar user retorna 201, listar retorna array, deactivate encerra sessões, operador tentando criar user retorna 403, toda ação gera registro em shared.audit_log
-- [ ] T071 [US4] Escrever teste `apps/api/src/__tests__/audit.test.ts` — criar user → SELECT shared.audit_log WHERE table_name='users' retorna 1 row com operation='INSERT' e new_values contendo name+email+role
+- [x] T065 [US4] Implementar `packages/auth/src/auth.service.ts` — createUser(name, email, role), updateUser(id, fields), deactivateUser(id), reactivateUser(id), resetPassword(id), listUsers(). Todas as mutações gravam user_id no contexto da sessão pra trigger de audit log.
+- [x] T066 [US4] Implementar `apps/api/src/routes/admin.routes.ts` — GET /api/v1/admin/users, POST /api/v1/admin/users, PATCH /api/v1/admin/users/:id, PATCH .../deactivate, .../reactivate, POST .../reset-password. Todas protegidas por requireRole('diretor'). GET /api/v1/admin/audit-log com filtros query.
+- [x] T067 [US4] Implementar `apps/web/src/pages/AdminUsersPage.tsx` — tabela de usuários (nome, email, perfil, status, último acesso), botões criar/editar/desativar, modal de criação (nome, email, role), modal de confirmação (desativar/reativar)
+- [x] T068 [P] [US4] Implementar componente `packages/ui/src/components/DataTable.tsx` — tabela genérica reutilizável com sorting, paginação, ações por linha (usado aqui e em módulos futuros)
+- [x] T069 [P] [US4] Implementar componente `packages/ui/src/components/Modal.tsx` — modal genérico (confirm, form) com overlay, ESC pra fechar, focus trap
+- [x] T070 [US4] Escrever teste `apps/api/src/__tests__/admin.test.ts` — criar user retorna 201, listar retorna array, deactivate encerra sessões, operador tentando criar user retorna 403, toda ação gera registro em shared.audit_log
+- [x] T071 [US4] Escrever teste `apps/api/src/__tests__/audit.test.ts` — criar user → SELECT shared.audit_log WHERE table_name='users' retorna 1 row com operation='INSERT' e new_values contendo name+email+role
 
 **Checkpoint**: Diretor cria operador. Operador faz login. Diretor promove a gestor → próximo login pede 2FA. Diretor desativa → login bloqueado. Audit log mostra todas as ações.
 
@@ -166,10 +166,10 @@
 
 ### Implementation for User Story 5
 
-- [ ] T072 [US5] Criar `.github/workflows/ci.yml` — trigger on push main + PR. Steps: checkout, setup pnpm, install, lint (turbo), typecheck (turbo), test (turbo), build Docker images (api + web), push Docker Hub, trigger Portainer webhook (se em main)
-- [ ] T073 [US5] Criar `deploy/atlas.stack.yml` — Docker Swarm stack: service atlas_api (imagem Docker Hub, port 3005, healthcheck, labels Traefik /api/*), service atlas_web (imagem Docker Hub, port 80, labels Traefik /), networks, secrets refs
-- [ ] T074 [P] [US5] Criar `apps/web/nginx.conf` — config nginx pra SPA: try_files $uri /index.html, gzip, cache headers pra assets, proxy /api pra upstream (não necessário se Traefik faz o routing externo)
-- [ ] T075 [US5] Documentar procedimento de rollback no `quickstart.md` — `docker service update --rollback atlas_api` + `docker service update --rollback atlas_web`. Nota: SC-006 exige <1min; rollback nativo do Swarm é instantâneo (reverte pra task anterior). Teste automatizado de timing não incluído — validar manualmente no primeiro deploy real.
+- [x] T072 [US5] Criar `.github/workflows/ci.yml` — trigger on push main + PR. Steps: checkout, setup pnpm, install, lint (turbo), typecheck (turbo), test (turbo), build Docker images (api + web), push Docker Hub, trigger Portainer webhook (se em main)
+- [x] T073 [US5] Criar `deploy/atlas.stack.yml` — Docker Swarm stack: service atlas_api (imagem Docker Hub, port 3005, healthcheck, labels Traefik /api/*), service atlas_web (imagem Docker Hub, port 80, labels Traefik /), networks, secrets refs
+- [x] T074 [P] [US5] Criar `apps/web/nginx.conf` — config nginx pra SPA: try_files $uri /index.html, gzip, cache headers pra assets, proxy /api pra upstream (não necessário se Traefik faz o routing externo)
+- [x] T075 [US5] Documentar procedimento de rollback no `quickstart.md` — `docker service update --rollback atlas_api` + `docker service update --rollback atlas_web`. Nota: SC-006 exige <1min; rollback nativo do Swarm é instantâneo (reverte pra task anterior). Teste automatizado de timing não incluído — validar manualmente no primeiro deploy real.
 
 **Checkpoint**: Push em main dispara GHA. Pipeline verde. `docker stack deploy -c deploy/atlas.stack.yml atlas` no Swarm. Domínio mostra login com HTTPS.
 
@@ -183,8 +183,8 @@
 
 ### Implementation for User Story 6
 
-- [ ] T076 [US6] Criar `deploy/atlas-staging.stack.yml` — mesma estrutura que atlas.stack.yml mas com prefixo atlas-staging-*, variáveis de ambiente apontando pra banco staging (database atlas_staging), labels Traefik com Host staging.dominio.com
-- [ ] T077 [US6] Documentar em `quickstart.md` o processo de deploy staging: build com tag :staging, push, `docker stack deploy -c deploy/atlas-staging.stack.yml atlas-staging`
+- [x] T076 [US6] Criar `deploy/atlas-staging.stack.yml` — mesma estrutura que atlas.stack.yml mas com prefixo atlas-staging-*, variáveis de ambiente apontando pra banco staging (database atlas_staging), labels Traefik com Host staging.dominio.com
+- [x] T077 [US6] Documentar em `quickstart.md` o processo de deploy staging: build com tag :staging, push, `docker stack deploy -c deploy/atlas-staging.stack.yml atlas-staging`
 
 **Checkpoint**: `docker stack deploy` do staging. Acessar staging.dominio.com mostra login. Criar user no staging não aparece em prod.
 
@@ -198,10 +198,10 @@
 
 ### Implementation for User Story 7
 
-- [ ] T078 [US7] Atualizar `apps/api/src/modules.ts` — ler MODULE_HEDGE_ENABLED, MODULE_STOCKBRIDGE_ENABLED, etc. do config. Exportar função registerModuleRoutes(app) que monta rotas somente dos módulos habilitados. Endpoint /api/v1/health já retorna lista de módulos.
-- [ ] T079 [US7] Atualizar `apps/web/src/hooks/useModules.ts` — consumir lista de módulos de /api/v1/health, passar pra Sidebar. Módulos desabilitados no backend não mostram link no front.
-- [ ] T080 [US7] Atualizar `apps/web/src/App.tsx` — rotas de módulo são geradas dinamicamente a partir da lista de módulos habilitados. Acesso direto a URL de módulo desabilitado → redirect pra dashboard com toast "módulo não disponível"
-- [ ] T081 [US7] Escrever teste `apps/api/src/__tests__/modules.test.ts` — com MODULE_HEDGE_ENABLED=true, GET /api/v1/health retorna hedge.enabled=true. Com MODULE_HEDGE_ENABLED=false, retorna false. Rota /api/v1/hedge/* retorna 404 quando desabilitado.
+- [x] T078 [US7] Atualizar `apps/api/src/modules.ts` — ler MODULE_HEDGE_ENABLED, MODULE_STOCKBRIDGE_ENABLED, etc. do config. Exportar função registerModuleRoutes(app) que monta rotas somente dos módulos habilitados. Endpoint /api/v1/health já retorna lista de módulos.
+- [x] T079 [US7] Atualizar `apps/web/src/hooks/useModules.ts` — consumir lista de módulos de /api/v1/health, passar pra Sidebar. Módulos desabilitados no backend não mostram link no front.
+- [x] T080 [US7] Atualizar `apps/web/src/App.tsx` — rotas de módulo são geradas dinamicamente a partir da lista de módulos habilitados. Acesso direto a URL de módulo desabilitado → redirect pra dashboard com toast "módulo não disponível"
+- [x] T081 [US7] Escrever teste `apps/api/src/__tests__/modules.test.ts` — com MODULE_HEDGE_ENABLED=true, GET /api/v1/health retorna hedge.enabled=true. Com MODULE_HEDGE_ENABLED=false, retorna false. Rota /api/v1/hedge/* retorna 404 quando desabilitado.
 
 **Checkpoint**: Todos os módulos desabilitados → sidebar mostra 7 itens cinza. Habilitar Hedge → sidebar mostra Hedge ativo (ainda é placeholder, mas o mecanismo funciona).
 
@@ -215,11 +215,11 @@
 
 ### Implementation for User Story Transversal
 
-- [ ] T082 [P] Implementar `packages/core/src/email.ts` — wrapper Sendgrid (@sendgrid/mail) com template de e-mail, fallback log em dev (não envia e-mail real, loga o link no console)
-- [ ] T083 Adicionar rota em `apps/api/src/routes/auth.routes.ts` — POST /api/v1/auth/forgot-password (gera token hash, salva em user, envia email via @atlas/core email). POST /api/v1/auth/reset-password (valida token + expiração, atualiza password_hash, limpa token)
-- [ ] T084 Implementar `apps/web/src/pages/ForgotPasswordPage.tsx` — form com campo e-mail, submit, mensagem genérica "se o e-mail existir, link será enviado"
-- [ ] T085 [P] Implementar `apps/web/src/pages/ResetPasswordPage.tsx` — form nova senha + confirmação, valida token da URL, submit reseta
-- [ ] T086 Atualizar `apps/web/src/App.tsx` — adicionar rotas /forgot-password e /reset-password/:token
+- [x] T082 [P] Implementar `packages/core/src/email.ts` — wrapper Sendgrid (@sendgrid/mail) com template de e-mail, fallback log em dev (não envia e-mail real, loga o link no console)
+- [x] T083 Adicionar rota em `apps/api/src/routes/auth.routes.ts` — POST /api/v1/auth/forgot-password (gera token hash, salva em user, envia email via @atlas/core email). POST /api/v1/auth/reset-password (valida token + expiração, atualiza password_hash, limpa token)
+- [x] T084 Implementar `apps/web/src/pages/ForgotPasswordPage.tsx` — form com campo e-mail, submit, mensagem genérica "se o e-mail existir, link será enviado"
+- [x] T085 [P] Implementar `apps/web/src/pages/ResetPasswordPage.tsx` — form nova senha + confirmação, valida token da URL, submit reseta
+- [x] T086 Atualizar `apps/web/src/App.tsx` — adicionar rotas /forgot-password e /reset-password/:token
 
 **Checkpoint**: Fluxo forgot → email (em dev: link no console) → reset → login com nova senha funciona.
 
@@ -231,16 +231,16 @@
 
 > **Nota**: SC-001 a SC-004 e SC-008 (metas de tempo: dev <10min, deploy <10min, login <2s, dashboard <1s, staging <5min) são validados manualmente no primeiro deploy real. Testes de performance automatizados são escopo de uma spec futura quando volume justificar.
 
-- [ ] T087 [P] Criar `packages/ui/src/components/Badge.tsx` — badge de status (ativo/inativo) e perfil (operador/gestor/diretor) com cores semânticas
-- [ ] T088 [P] Criar `packages/ui/src/components/LoadingSpinner.tsx` — spinner/skeleton pra loading states
-- [ ] T089 [P] Implementar `apps/web/src/pages/NotFoundPage.tsx` — 404 amigável com link pra dashboard
-- [ ] T090 Implementar `apps/web/src/components/ErrorBoundary.tsx` — catch de erros React, mostra "algo deu errado" + Trace ID
-- [ ] T091 Validar WCAG AA básico: contraste de cores nos tokens, labels ARIA em todos os inputs, focus visible em botões, navegação por teclado na sidebar + modais
-- [ ] T092 Rodar `pnpm lint` e `pnpm typecheck` — corrigir quaisquer erros
-- [ ] T093 Rodar `pnpm test` — garantir todos os testes passam
-- [ ] T094 Atualizar `README.md` com instruções finais de quickstart, link pros specs, e badges de status
-- [ ] T095 Verificar que `.env.example` está completo e `deploy/docker-compose.yml` sobe sem erro numa máquina limpa
-- [ ] T096 Build de produção: `docker build` dos Dockerfiles api e web completa sem erro
+- [x] T087 [P] Criar `packages/ui/src/components/Badge.tsx` — badge de status (ativo/inativo) e perfil (operador/gestor/diretor) com cores semânticas
+- [x] T088 [P] Criar `packages/ui/src/components/LoadingSpinner.tsx` — spinner/skeleton pra loading states
+- [x] T089 [P] Implementar `apps/web/src/pages/NotFoundPage.tsx` — 404 amigável com link pra dashboard
+- [x] T090 Implementar `apps/web/src/components/ErrorBoundary.tsx` — catch de erros React, mostra "algo deu errado" + Trace ID
+- [x] T091 Validar WCAG AA básico: contraste de cores nos tokens, labels ARIA em todos os inputs, focus visible em botões, navegação por teclado na sidebar + modais
+- [x] T092 Rodar `pnpm lint` e `pnpm typecheck` — corrigir quaisquer erros
+- [x] T093 Rodar `pnpm test` — garantir todos os testes passam
+- [x] T094 Atualizar `README.md` com instruções finais de quickstart, link pros specs, e badges de status
+- [x] T095 Verificar que `.env.example` está completo e `deploy/docker-compose.yml` sobe sem erro numa máquina limpa
+- [x] T096 Build de produção: `docker build` dos Dockerfiles api e web completa sem erro
 
 **Checkpoint**: `pnpm lint && pnpm typecheck && pnpm test` verde. Docker build das duas imagens sucede. README atualizado.
 

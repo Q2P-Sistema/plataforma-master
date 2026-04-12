@@ -12,3 +12,19 @@ export {
   recordFailedLogin,
   resetFailedLogins,
 } from './rate-limit.js';
+export {
+  generateSecret,
+  generateOtpauthUrl,
+  generateQRCodeDataUrl,
+  verifyCode,
+} from './totp.service.js';
+export {
+  listUsers,
+  createUser,
+  updateUser,
+  deactivateUser,
+  reactivateUser,
+  adminResetPassword,
+  UserError,
+  type UserPublic,
+} from './auth.service.js';
