@@ -283,6 +283,7 @@ router.post(
 
       // Verify the code against the stored secret
       const isValid = verifyCode(freshUser.totpSecret, code);
+      logger.debug({ userId: user.id, codeLength: code.length, isValid, hasSecret: !!freshUser.totpSecret }, 'Confirm 2FA attempt');
       if (!isValid) {
         sendError(res, 'INVALID_2FA_CODE', 'Código inválido. Tente novamente.', 400);
         return;

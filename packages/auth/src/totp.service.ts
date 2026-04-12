@@ -1,6 +1,9 @@
 import { authenticator } from 'otplib';
 import QRCode from 'qrcode';
 
+// Allow 1 window before/after (90s total tolerance for clock drift)
+authenticator.options = { window: 1 };
+
 const ISSUER = 'Atlas';
 
 export function generateSecret(): string {
