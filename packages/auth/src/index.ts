@@ -25,6 +25,7 @@ export {
   deactivateUser,
   reactivateUser,
   adminResetPassword,
+  adminReset2FA,
   UserError,
   type UserPublic,
 } from './auth.service.js';

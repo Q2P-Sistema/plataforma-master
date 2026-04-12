@@ -11,6 +11,7 @@ import {
   deactivateUser,
   reactivateUser,
   adminResetPassword,
+  adminReset2FA,
   UserError,
 } from '@atlas/auth';
 import { sendSuccess, sendError } from '../envelope.js';
@@ -205,6 +206,31 @@ router.post(
         return;
       }
       logger.error({ err }, 'Reset password error');
+      sendError(res, 'INTERNAL_ERROR', 'Erro interno do servidor', 500);
+    }
+  },
+);
+
+// POST /api/v1/admin/users/:id/reset-2fa
+router.post(
+  '/api/v1/admin/users/:id/reset-2fa',
+  async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      await adminReset2FA(id!);
+
+      logger.info(
+        { adminId: req.user!.id, targetId: id },
+        '2FA reset by admin',
+      );
+
+      sendSuccess(res, { totp_enabled: false });
+    } catch (err) {
+      if (err instanceof UserError) {
+        sendError(res, err.code, err.message, 404);
+        return;
+      }
+      logger.error({ err }, 'Reset 2FA error');
       sendError(res, 'INTERNAL_ERROR', 'Erro interno do servidor', 500);
     }
   },

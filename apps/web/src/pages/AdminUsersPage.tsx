@@ -1,7 +1,7 @@
 import { useState, type FormEvent, type ChangeEvent } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DataTable, Modal, type Column } from '@atlas/ui';
-import { UserPlus, Edit2, UserX, UserCheck, KeyRound } from 'lucide-react';
+import { UserPlus, Edit2, UserX, UserCheck, KeyRound, ShieldOff } from 'lucide-react';
 import { useAuthStore } from '../stores/auth.store.js';
 
 interface AdminUser {
@@ -54,7 +54,7 @@ export function AdminUsersPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editUser, setEditUser] = useState<AdminUser | null>(null);
   const [confirmAction, setConfirmAction] = useState<{
-    type: 'deactivate' | 'reactivate' | 'reset-password';
+    type: 'deactivate' | 'reactivate' | 'reset-password' | 'reset-2fa';
     user: AdminUser;
   } | null>(null);
   const [tempPassword, setTempPassword] = useState<string | null>(null);
@@ -106,8 +106,8 @@ export function AdminUsersPage() {
 
   const actionMutation = useMutation({
     mutationFn: async ({ id, type }: { id: string; type: string }) => {
-      if (type === 'reset-password') {
-        return adminFetch(`/api/v1/admin/users/${id}/reset-password`, { method: 'POST' });
+      if (type === 'reset-password' || type === 'reset-2fa') {
+        return adminFetch(`/api/v1/admin/users/${id}/${type}`, { method: 'POST' });
       }
       return adminFetch(`/api/v1/admin/users/${id}/${type}`, { method: 'PATCH' });
     },
@@ -267,6 +267,16 @@ export function AdminUsersPage() {
             >
               <KeyRound size={14} />
             </button>
+            {row.totp_enabled && (
+              <button
+                onClick={() => setConfirmAction({ type: 'reset-2fa', user: row })}
+                className="p-1.5 rounded hover:bg-atlas-border focus:outline-none focus:ring-2 focus:ring-acxe transition-colors text-atlas-muted hover:text-warn"
+                title="Resetar 2FA"
+                aria-label={`Resetar 2FA de ${row.name}`}
+              >
+                <ShieldOff size={14} />
+              </button>
+            )}
           </>
         )}
       />
@@ -415,7 +425,9 @@ export function AdminUsersPage() {
             ? 'Desativar usuario'
             : confirmAction?.type === 'reactivate'
               ? 'Reativar usuario'
-              : 'Resetar senha'
+              : confirmAction?.type === 'reset-2fa'
+                ? 'Resetar 2FA'
+                : 'Resetar senha'
         }
         footer={
           <>
@@ -461,6 +473,12 @@ export function AdminUsersPage() {
             <>
               Resetar a senha de <strong>{confirmAction?.user.name}</strong>? Uma senha
               temporaria sera gerada.
+            </>
+          )}
+          {confirmAction?.type === 'reset-2fa' && (
+            <>
+              Resetar o 2FA de <strong>{confirmAction?.user.name}</strong>? O usuario
+              tera que reconfigurar o autenticador no proximo login.
             </>
           )}
         </p>

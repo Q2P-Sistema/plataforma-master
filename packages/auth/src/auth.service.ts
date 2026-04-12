@@ -155,6 +155,26 @@ export async function adminResetPassword(
   return { temporaryPassword };
 }
 
+export async function adminReset2FA(id: string): Promise<void> {
+  const db = getDb();
+
+  const [updated] = await db
+    .update(users)
+    .set({
+      totpSecret: null,
+      totpEnabled: false,
+    })
+    .where(eq(users.id, id))
+    .returning();
+
+  if (!updated) {
+    throw new UserError('USER_NOT_FOUND', 'Usuário não encontrado');
+  }
+
+  // Destroy sessions so they must re-login and reconfigure 2FA
+  await destroyUserSessions(id);
+}
+
 export class UserError extends Error {
   constructor(
     public code: string,
