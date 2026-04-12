@@ -3,5 +3,31 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Aplica\u00e7\u00e3o \u00fanica de API — importa m\u00f3dulos habilitados via feature flag, hospeda o cliente LISTEN/NOTIFY"
+  "description": "API única — importa módulos habilitados via feature flag",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js"
+  },
+  "dependencies": {
+    "@atlas/auth": "workspace:*",
+    "@atlas/core": "workspace:*",
+    "@atlas/db": "workspace:*",
+    "@sendgrid/mail": "^8.1.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "drizzle-orm": "^0.38.0",
+    "express": "^4.21.0",
+    "express-rate-limit": "^7.4.0",
+    "rate-limit-redis": "^4.2.0"
+  },
+  "devDependencies": {
+    "@types/cookie-parser": "^1.4.0",
+    "@types/cors": "^2.8.0",
+    "@types/express": "^5.0.0",
+    "@types/supertest": "^6.0.0",
+    "supertest": "^7.0.0",
+    "tsx": "^4.19.0",
+    "vitest": "^2.1.0"
+  }
 }

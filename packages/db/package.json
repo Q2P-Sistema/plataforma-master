@@ -3,5 +3,33 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Migrations centralizadas + contratos de views do schema shared"
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "generate": "drizzle-kit generate",
+    "migrate": "drizzle-kit migrate",
+    "studio": "drizzle-kit studio"
+  },
+  "description": "Migrations centralizadas + contratos de views do schema shared",
+  "scripts": {
+    "generate": "drizzle-kit generate",
+    "migrate": "drizzle-kit migrate",
+    "studio": "drizzle-kit studio"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.38.0",
+    "pg": "^8.13.0",
+    "@atlas/core": "workspace:*"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.30.0",
+    "@types/pg": "^8.11.0"
+  }
 }

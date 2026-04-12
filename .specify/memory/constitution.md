@@ -161,8 +161,8 @@ interna corporativa.
 3. Audit log é append-only.
 4. Fallback gracioso só vale para integrações externas (OMIE, BCB, CRM, Sendgrid, Backblaze, LLM),
    nunca entre módulos internos.
-5. Tema visual claro é padrão em todos os módulos, exceto ComexFlow, que usa tema escuro por ser
-   interface operacional intensiva.
+5. Identidade visual unificada em todos os módulos — paleta quente areia (#F2EDE4 base), tipografia
+   DM Sans + Fraunces + monospace pra dados. Dark mode é opção do usuário (toggle, default SO).
 
 **Complementaridade entre documentos do Atlas:**
 
@@ -320,7 +320,9 @@ específicas, configurações e decisões de segunda ordem vivem em [TECH_STACK.
 - **Frontend:** React 18 + Vite + shadcn/ui + Tailwind. Um único `apps/web` que serve todos os
   módulos habilitados. Sem framework alternativo.
 - **Design system:** `packages/ui` compartilhado; módulos não importam biblioteca de componentes
-  própria.
+  própria. Paleta quente areia (#F2EDE4 base), fontes DM Sans (body) + Fraunces (headings) +
+  monospace pra dados numéricos. Dark mode via toggle (default segue SO). Identidade visual
+  unificada — todos os módulos sem exceção.
 - **Reverse proxy:** Traefik no Docker Swarm, 1 VPS manager + 1 VPS database na DigitalOcean.
 - **Deploy:** Docker Swarm via Portainer + stack yaml. Dois containers em prod (`apps/api` + `apps/web`).
   Módulos habilitados por feature flag em `.env` ([ADR-0005](../../docs/adr/0005-deploy-opcao-a-single-app.md)).

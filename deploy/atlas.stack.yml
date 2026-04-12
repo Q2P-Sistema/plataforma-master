@@ -1,0 +1,89 @@
+version: "3.8"
+
+services:
+  api:
+    image: ${DOCKER_HUB_USER:-atlas}/atlas-api:${TAG:-latest}
+    networks:
+      - swarm_public
+      - internal
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      SESSION_SECRET: ${SESSION_SECRET}
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD}
+      N8N_HEALTH_URL: ${N8N_HEALTH_URL:-}
+      NODE_ENV: production
+      API_PORT: "3005"
+      MODULE_HEDGE_ENABLED: ${MODULE_HEDGE_ENABLED:-false}
+      MODULE_STOCKBRIDGE_ENABLED: ${MODULE_STOCKBRIDGE_ENABLED:-false}
+      MODULE_BREAKINGPOINT_ENABLED: ${MODULE_BREAKINGPOINT_ENABLED:-false}
+      MODULE_CLEVEL_ENABLED: ${MODULE_CLEVEL_ENABLED:-false}
+      MODULE_COMEXINSIGHT_ENABLED: ${MODULE_COMEXINSIGHT_ENABLED:-false}
+      MODULE_COMEXFLOW_ENABLED: ${MODULE_COMEXFLOW_ENABLED:-false}
+      MODULE_FORECAST_ENABLED: ${MODULE_FORECAST_ENABLED:-false}
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: start-first
+      rollback_config:
+        parallelism: 1
+        order: start-first
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.atlas-api.rule=Host(`${DOMAIN}`) && PathPrefix(`/api`)"
+        - "traefik.http.routers.atlas-api.entrypoints=websecure"
+        - "traefik.http.routers.atlas-api.tls.certresolver=letsencrypt"
+        - "traefik.http.services.atlas-api.loadbalancer.server.port=3005"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3005/api/v1/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  web:
+    image: ${DOCKER_HUB_USER:-atlas}/atlas-web:${TAG:-latest}
+    networks:
+      - swarm_public
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: start-first
+      rollback_config:
+        parallelism: 1
+        order: start-first
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.atlas-web.rule=Host(`${DOMAIN}`)"
+        - "traefik.http.routers.atlas-web.entrypoints=websecure"
+        - "traefik.http.routers.atlas-web.tls.certresolver=letsencrypt"
+        - "traefik.http.services.atlas-web.loadbalancer.server.port=80"
+        # Lower priority so /api routes go to api service
+        - "traefik.http.routers.atlas-web.priority=1"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:80/"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+networks:
+  swarm_public:
+    external: true
+  internal:
+    driver: overlay

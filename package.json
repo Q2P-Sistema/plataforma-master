@@ -17,6 +17,9 @@
     "dev": "turbo run dev",
     "clean": "turbo run clean && rm -rf node_modules .turbo"
   },
+  "pnpm": {
+    "onlyBuiltDependencies": ["argon2", "esbuild"]
+  },
   "devDependencies": {
     "@types/node": "^20.14.0",
     "@typescript-eslint/eslint-plugin": "^8.0.0",

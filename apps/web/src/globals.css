@@ -1,0 +1,24 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --atlas-bg: #F2EDE4;
+  --atlas-card: #FFFFFF;
+  --atlas-text: #1a1a2e;
+  --atlas-muted: #6b7280;
+  --atlas-border: #d6d0c4;
+}
+
+.dark {
+  --atlas-bg: #1a1a2e;
+  --atlas-card: #16213e;
+  --atlas-text: #e4e7e0;
+  --atlas-muted: #9ca3af;
+  --atlas-border: #2d3748;
+}
+
+body {
+  @apply bg-atlas-bg text-atlas-text font-sans antialiased;
+  margin: 0;
+}
