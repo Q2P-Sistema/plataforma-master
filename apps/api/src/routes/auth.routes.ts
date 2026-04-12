@@ -24,7 +24,7 @@ const SESSION_COOKIE = 'atlas_session';
 const TEMP_TOKEN_PREFIX = 'atlas:2fa:temp:';
 const TEMP_TOKEN_TTL = 300; // 5 minutes
 
-const router = Router();
+const router: Router = Router();
 
 // POST /api/v1/auth/login
 router.post('/api/v1/auth/login', async (req: Request, res: Response) => {

@@ -17,7 +17,7 @@ import {
 import { sendSuccess, sendError } from '../envelope.js';
 
 const logger = createLogger('admin');
-const router = Router();
+const router: Router = Router();
 
 // All admin routes require auth + diretor role
 router.use('/api/v1/admin', requireAuth, requireRole('diretor'));
@@ -99,7 +99,7 @@ router.post('/api/v1/admin/users', async (req: Request, res: Response) => {
 // PATCH /api/v1/admin/users/:id
 router.patch('/api/v1/admin/users/:id', async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const { name, role } = req.body;
 
     const fields: Record<string, unknown> = {};
@@ -118,7 +118,7 @@ router.patch('/api/v1/admin/users/:id', async (req: Request, res: Response) => {
       return;
     }
 
-    const updated = await updateUser(id!, fields);
+    const updated = await updateUser(id, fields);
 
     logger.info(
       { adminId: req.user!.id, targetId: id, fields: Object.keys(fields) },
@@ -141,8 +141,8 @@ router.patch(
   '/api/v1/admin/users/:id/deactivate',
   async (req: Request, res: Response) => {
     try {
-      const { id } = req.params;
-      await deactivateUser(id!);
+      const id = req.params.id as string;
+      await deactivateUser(id);
 
       logger.info(
         { adminId: req.user!.id, targetId: id },
@@ -166,8 +166,8 @@ router.patch(
   '/api/v1/admin/users/:id/reactivate',
   async (req: Request, res: Response) => {
     try {
-      const { id } = req.params;
-      await reactivateUser(id!);
+      const id = req.params.id as string;
+      await reactivateUser(id);
 
       logger.info(
         { adminId: req.user!.id, targetId: id },
@@ -191,8 +191,8 @@ router.post(
   '/api/v1/admin/users/:id/reset-password',
   async (req: Request, res: Response) => {
     try {
-      const { id } = req.params;
-      const { temporaryPassword } = await adminResetPassword(id!);
+      const id = req.params.id as string;
+      const { temporaryPassword } = await adminResetPassword(id);
 
       logger.info(
         { adminId: req.user!.id, targetId: id },
@@ -216,8 +216,8 @@ router.post(
   '/api/v1/admin/users/:id/reset-2fa',
   async (req: Request, res: Response) => {
     try {
-      const { id } = req.params;
-      await adminReset2FA(id!);
+      const id = req.params.id as string;
+      await adminReset2FA(id);
 
       logger.info(
         { adminId: req.user!.id, targetId: id },
