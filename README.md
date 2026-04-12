@@ -110,4 +110,4 @@ Decisões maiores detalhadas em **Architecture Decision Records** em [docs/adr/]
 5. **Fallback gracioso só para integrações externas** (OMIE, BCB, CRM, Backblaze, Sendgrid, LLM via n8n). Entre módulos internos, não existe.
 6. **Queries de leitura sempre vão no Postgres, nunca na API OMIE.**
 7. **Cálculo financeiro sempre em TypeScript, nunca em n8n.** Ver [ADR-0006](docs/adr/0006-n8n-como-hub-de-orquestracao.md).
-8. **Tema claro padrão** (exceto ComexFlow, que usa tema escuro por ser operacional).
+8. **Identidade visual unificada** em todos os módulos — paleta quente areia, DM Sans + Fraunces. Dark mode como opção do usuário (toggle, default segue SO).

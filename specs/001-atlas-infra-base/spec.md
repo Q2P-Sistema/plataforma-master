@@ -128,6 +128,24 @@ Conforme cada módulo de domínio fica pronto (começando pelo Hedge Engine), Fl
 
 ---
 
+### User Story 8 — Usuário reseta senha esquecida (Priority: P2)
+
+Um colaborador que esqueceu sua senha acessa a tela de login, clica em "Esqueci minha senha", informa seu e-mail e recebe um link de recuperação por e-mail. Ao clicar no link, define uma nova senha e consegue fazer login normalmente.
+
+**Why this priority**: Sem fluxo de recuperação, qualquer usuário que esqueça a senha depende do diretor fazer reset manual — gargalo operacional e risco de segurança (compartilhar senhas temporárias por chat).
+
+**Independent Test**: Clicar "esqueci senha", verificar e-mail recebido (ou link no console em dev), usar o link, definir nova senha, fazer login.
+
+**Acceptance Scenarios**:
+
+1. **Given** a tela de login, **When** o usuário clica em "Esqueci minha senha" e informa seu e-mail, **Then** o sistema exibe mensagem genérica "Se o e-mail existir, um link de recuperação será enviado" (sem revelar se e-mail existe).
+2. **Given** um e-mail válido cadastrado, **When** o sistema processa a solicitação, **Then** um e-mail com link contendo token único é enviado, com expiração de 30 minutos.
+3. **Given** o link de recuperação, **When** o usuário clica e define nova senha, **Then** a senha é atualizada, o token é invalidado e o usuário é redirecionado pra tela de login.
+4. **Given** um token já usado ou expirado, **When** o usuário tenta acessar o link, **Then** o sistema mostra "Link inválido ou expirado" e oferece opção de solicitar novo link.
+5. **Given** qualquer solicitação de reset, **When** processada, **Then** um registro é gravado no histórico de auditoria.
+
+---
+
 ### Edge Cases
 
 - O que acontece se o banco de dados está fora do ar quando o Atlas inicia? O sistema deve reportar status degradado na página de saúde mas não travar o processo de inicialização.
@@ -135,7 +153,13 @@ Conforme cada módulo de domínio fica pronto (começando pelo Hedge Engine), Fl
 - O que acontece se um usuário tenta acessar um recurso que pertence a outro perfil? O sistema deve retornar "acesso não autorizado" e registrar a tentativa no histórico de auditoria.
 - O que acontece se 5 tentativas de login falham em sequência? O sistema bloqueia aquele IP/conta por tempo configurável.
 - O que acontece se o certificado HTTPS expira? O proxy reverso deve renovar automaticamente (Let's Encrypt via Traefik).
-- O que acontece com sessões ativas quando um deploy atualiza o backend? As sessões devem sobreviver ao redeploy (cookie-based, não em memória do processo).
+- O que acontece com sessões ativas quando um deploy atualiza o backend? As sessões devem sobreviver ao redeploy (cookie-based, não em memória do processo). Coberto pela arquitetura: sessões persistidas em Postgres + cookies httpOnly, sem estado in-process. Não requer task de teste separada.
+
+## Clarifications
+
+### Session 2026-04-12
+
+- Q: Cada usuário pertence a uma empresa (ACXE/Q2P) ou todos veem ambas? → A: Todos os usuários veem dados de ambas as empresas. O perfil (operador/gestor/diretor) controla a profundidade de acesso, não a empresa. O seletor de empresa nos dashboards é filtro visual, não controle de permissão.
 
 ## Requirements *(mandatory)*
 
@@ -155,14 +179,14 @@ Conforme cada módulo de domínio fica pronto (começando pelo Hedge Engine), Fl
 - **FR-012**: O sistema DEVE expirar sessões após 8 horas de inatividade ou 24 horas absolutas.
 - **FR-013**: O sistema DEVE bloquear tentativas de login após 5 falhas consecutivas por 30 minutos.
 - **FR-014**: O sistema DEVE permitir que o usuário resete sua senha via link por e-mail com expiração de 30 minutos.
-- **FR-015**: O sistema DEVE manter uma identidade visual unificada (paleta de cores, tipografia, componentes) consistente em todos os módulos habilitados, usando tema claro como padrão.
-- **FR-016**: O sistema DEVE ser responsivo, adaptando layout para telas de desktop e tablet.
+- **FR-015**: O sistema DEVE manter uma identidade visual unificada (paleta quente areia #F2EDE4, tipografia DM Sans + Fraunces + monospace pra dados, componentes compartilhados) consistente em **todos** os módulos sem exceção. Dark mode DEVE estar disponível como opção do usuário (toggle na topbar, default segue preferência do SO).
+- **FR-016**: O sistema DEVE ser responsivo, adaptando layout para telas de desktop e tablet. Breakpoints seguem padrão Tailwind: sm (640px), md (768px), lg (1024px), xl (1280px). Layout otimizado para ≥768px (tablet portrait).
 - **FR-017**: O sistema DEVE proteger todas as rotas contra acesso não autenticado e não autorizado, verificando perfil do usuário contra as permissões requeridas.
 - **FR-018**: O sistema DEVE garantir que dados sensíveis (senhas, tokens, chaves de integração) nunca apareçam em logs ou mensagens de erro.
 
 ### Key Entities
 
-- **Usuário**: Representa um colaborador interno da empresa que acessa o Atlas. Atributos: nome, e-mail, senha (hash), perfil (operador/gestor/diretor), status (ativo/inativo), configuração 2FA, data do último acesso.
+- **Usuário**: Representa um colaborador interno do grupo ACXE+Q2P que acessa o Atlas. Atributos: nome, e-mail, senha (hash), perfil (operador/gestor/diretor), status (ativo/inativo), configuração 2FA, data do último acesso. O usuário NÃO pertence a uma empresa específica — todos os usuários veem dados de ambas as empresas (ACXE e Q2P). A restrição de acesso é pelo perfil, não pela empresa. Seletores de empresa em dashboards são filtros visuais, não controles de permissão.
 - **Sessão**: Representa uma sessão autenticada. Atributos: usuário associado, momento de criação, momento de expiração, IP de origem.
 - **Módulo**: Representa um dos 7 módulos de domínio do Atlas. Atributos: identificador, nome de exibição, status (habilitado/desabilitado), ícone, rota base.
 - **Registro de Auditoria**: Entrada imutável no histórico de auditoria. Atributos: timestamp, usuário, tipo de operação, entidade afetada, valores antes/depois, IP de origem.
@@ -174,7 +198,7 @@ Conforme cada módulo de domínio fica pronto (começando pelo Hedge Engine), Fl
 
 - **SC-001**: Um desenvolvedor novo consegue clonar o repositório e ter o Atlas rodando localmente em menos de 10 minutos, seguindo no máximo 5 passos documentados.
 - **SC-002**: O ciclo completo de deploy (merge → build → publicação → atualização do servidor) completa em menos de 10 minutos.
-- **SC-003**: A tela de login carrega em menos de 2 segundos em conexão doméstica brasileira.
+- **SC-003**: A tela de login carrega em menos de 2 segundos em conexão de 10 Mbps com latência ≤50ms ao datacenter.
 - **SC-004**: O painel principal com sidebar dos 7 módulos carrega em menos de 1 segundo após login.
 - **SC-005**: 100% das mutações em dados de domínio geram registro de auditoria verificável.
 - **SC-006**: Rollback em produção restaura a versão anterior em menos de 1 minuto.

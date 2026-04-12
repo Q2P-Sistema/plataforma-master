@@ -487,7 +487,7 @@ As decisões aqui são complementadas pelos **Architecture Decision Records** em
 
 ### O app precisa funcionar para pessoas com deficiência?
 
-- **WCAG AA básico** — contraste suficiente, navegação por teclado, labels ARIA em campos, foco visível, texto escalável.
+- **WCAG AA básico** — contraste suficiente (em ambos os temas light e dark), navegação por teclado, labels ARIA em campos, foco visível, texto escalável.
 
 > 💡 Motivo: Lei Brasileira de Inclusão (LBI) aplica a sistemas corporativos. Feito desde o início, custa quase zero (shadcn/ui já entrega a11y básica de graça). Feito depois, custa refactor visual inteiro.
 
@@ -712,7 +712,7 @@ Atlas não faz polling de OMIE. Queries de leitura vão no Postgres (sincronizad
 
 ### A.7 — Identidade visual unificada via `packages/ui`
 
-O shell React é um só (`apps/web`), carrega as rotas de todos os módulos habilitados, e usa os componentes compartilhados de `packages/ui`. Cada módulo pode ter variações de tema dentro dos componentes, mas não pode importar biblioteca de componentes própria. Tema claro é padrão; ComexFlow usa tema escuro por ser interface operacional.
+O shell React é um só (`apps/web`), carrega as rotas de todos os módulos habilitados, e usa os componentes compartilhados de `packages/ui`. Nenhum módulo pode importar biblioteca de componentes própria. **Identidade visual unificada** — paleta quente areia (#F2EDE4 base), fontes DM Sans (body) + Fraunces (headings) + monospace pra dados numéricos. Dark mode disponível como opção do usuário (toggle na topbar, default segue preferência do SO via `prefers-color-scheme`).
 
 ### A.8 — Ordem de migração dos módulos legados
 
