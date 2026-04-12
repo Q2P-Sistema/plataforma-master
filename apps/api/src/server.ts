@@ -7,6 +7,7 @@ import healthRouter from './health.js';
 import authRouter from './routes/auth.routes.js';
 import adminRouter from './routes/admin.routes.js';
 import { registerModuleRoutes } from './modules.js';
+import { seedAdmin } from './seed.js';
 
 const config = loadConfig();
 const logger = createLogger('api');
@@ -29,11 +30,12 @@ registerModuleRoutes(app);
 app.use(globalErrorHandler);
 
 // Start
-app.listen(config.API_PORT, () => {
+app.listen(config.API_PORT, async () => {
   logger.info(
     { port: config.API_PORT, env: config.NODE_ENV },
     'Atlas API started',
   );
+  await seedAdmin();
 });
 
 export default app;

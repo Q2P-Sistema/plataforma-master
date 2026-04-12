@@ -1,5 +1,22 @@
 import { z } from 'zod';
-import 'dotenv/config';
+import { config as dotenvConfig } from 'dotenv';
+import { resolve } from 'node:path';
+import { existsSync } from 'node:fs';
+
+// Walk up to find .env at monorepo root
+function findEnvFile(): string | undefined {
+  let dir = process.cwd();
+  for (let i = 0; i < 5; i++) {
+    const envPath = resolve(dir, '.env');
+    if (existsSync(envPath)) return envPath;
+    const parent = resolve(dir, '..');
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return undefined;
+}
+
+dotenvConfig({ path: findEnvFile() });
 
 const boolString = z
   .enum(['true', 'false', '1', '0', ''])
