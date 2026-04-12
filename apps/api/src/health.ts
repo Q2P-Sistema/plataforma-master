@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { getConfig, getPool, getRedis } from '@atlas/core';
 import { getModules } from './modules.js';
 
-const router = Router();
+const router: Router = Router();
 
 router.get('/api/v1/health', async (_req, res) => {
   const config = getConfig();

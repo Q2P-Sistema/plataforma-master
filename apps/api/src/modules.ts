@@ -48,7 +48,7 @@ export function getEnabledModules(): ModuleInfo[] {
  * Currently a no-op placeholder — each module spec (002-hedge, etc.)
  * will add its router here when implemented.
  */
-export function registerModuleRoutes(app: Express): void {
+export function registerModuleRoutes(_app: Express): void {
   const enabled = getEnabledModules();
 
   if (enabled.length === 0) {
