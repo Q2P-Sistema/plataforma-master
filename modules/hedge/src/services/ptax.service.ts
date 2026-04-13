@@ -1,9 +1,8 @@
-import { eq, sql, desc } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 import { getDb, createLogger } from '@atlas/core';
 import { ptaxHistorico } from '@atlas/db';
 import { fetchPtaxAtual, fetchPtaxHistorico, type PtaxQuote } from '@atlas/integration-bcb';
 
-const logger = createLogger('hedge:ptax');
 
 export async function getAtual(): Promise<PtaxQuote> {
   const quote = await fetchPtaxAtual();

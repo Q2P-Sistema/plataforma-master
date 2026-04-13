@@ -1,7 +1,7 @@
 import Decimal from 'decimal.js';
 import { eq, and, type SQL } from 'drizzle-orm';
 import { getDb, createLogger } from '@atlas/core';
-import { ndfRegistro, bucketMensal, type NdfRegistro, type NewNdfRegistro } from '@atlas/db';
+import { ndfRegistro, bucketMensal, type NdfRegistro } from '@atlas/db';
 import { fetchPtaxAtual } from '@atlas/integration-bcb';
 
 const logger = createLogger('hedge:ndf');

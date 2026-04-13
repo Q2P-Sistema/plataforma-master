@@ -1,7 +1,7 @@
 import Decimal from 'decimal.js';
 import { eq, and, desc, type SQL } from 'drizzle-orm';
 import { getDb, createLogger } from '@atlas/core';
-import { alerta, bucketMensal, configMotor, type BucketMensal } from '@atlas/db';
+import { alerta, configMotor, type BucketMensal } from '@atlas/db';
 
 const logger = createLogger('hedge:alerta');
 
