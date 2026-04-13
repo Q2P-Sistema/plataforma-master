@@ -56,7 +56,6 @@ router.get('/api/v1/hedge/posicao', async (req: Request, res: Response) => {
           gap_usd: result.kpis.gap_usd,
           ptax_atual: result.kpis.ptax_atual,
           variacao_30d_pct: variacao30d,
-          est_nao_pago_usd: result.kpis.resumo.est_nao_pago_usd,
           ...result.kpis.resumo,
         },
         buckets: result.buckets.map((b) => ({
