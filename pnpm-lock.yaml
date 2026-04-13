@@ -44,6 +44,9 @@ importers:
       '@atlas/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@atlas/forecast':
+        specifier: workspace:*
+        version: link:../../modules/forecast
       '@atlas/hedge':
         specifier: workspace:*
         version: link:../../modules/hedge
