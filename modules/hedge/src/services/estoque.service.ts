@@ -1,33 +1,55 @@
-import { eq, and, desc, type SQL } from 'drizzle-orm';
-import { getDb } from '@atlas/core';
-import { estoqueSnapshot } from '@atlas/db';
+import { getPool, createLogger } from '@atlas/core';
+
+const logger = createLogger('hedge:estoque');
 
 interface EstoqueFiltros {
   empresa?: 'acxe' | 'q2p';
 }
 
-export async function getEstoque(filtros: EstoqueFiltros = {}) {
-  const db = getDb();
-  const conditions: SQL[] = [];
+interface EstoqueAgregado {
+  localidade: string;
+  empresa: string;
+  origem: string;
+  itens: number;
+  valor_brl: number;
+  custo_usd_estimado: number;
+  ptax_ref: number;
+}
 
+export async function getEstoque(filtros: EstoqueFiltros = {}): Promise<EstoqueAgregado[]> {
+  const pool = getPool();
+
+  let query = `
+    SELECT
+      empresa,
+      local_descricao AS localidade,
+      origem,
+      COUNT(*)::int AS itens,
+      SUM(valor_total_brl)::numeric AS valor_brl,
+      SUM(valor_total_usd)::numeric AS custo_usd_estimado,
+      MAX(ptax_ref)::numeric AS ptax_ref
+    FROM public.vw_hedge_estoque
+  `;
+
+  const params: string[] = [];
   if (filtros.empresa) {
-    conditions.push(eq(estoqueSnapshot.empresa, filtros.empresa));
+    params.push(filtros.empresa);
+    query += ` WHERE empresa = $1`;
   }
 
-  // Get latest snapshot per localidade
-  const rows = await db
-    .select()
-    .from(estoqueSnapshot)
-    .where(conditions.length > 0 ? and(...conditions) : undefined)
-    .orderBy(desc(estoqueSnapshot.dataRef));
+  query += ` GROUP BY empresa, local_descricao, origem ORDER BY empresa, valor_brl DESC`;
 
-  return rows.map((r) => ({
+  const { rows } = await pool.query(query, params);
+
+  logger.debug({ count: rows.length, empresa: filtros.empresa }, 'Estoque loaded from vw_hedge_estoque');
+
+  return rows.map((r: any) => ({
     localidade: r.localidade,
     empresa: r.empresa,
-    valor_brl: Number(r.valorBrl),
-    custo_usd_estimado: Number(r.custoUsdEstimado),
-    pago: r.pago,
-    fase: r.fase,
-    data_ref: r.dataRef,
+    origem: r.origem,
+    itens: r.itens,
+    valor_brl: Number(r.valor_brl),
+    custo_usd_estimado: Number(r.custo_usd_estimado),
+    ptax_ref: Number(r.ptax_ref),
   }));
 }

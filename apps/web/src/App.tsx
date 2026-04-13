@@ -8,7 +8,16 @@ import {
   useNavigate,
 } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ShellLayout } from '@atlas/ui';
+import { ShellLayout, type SidebarSubItem } from '@atlas/ui';
+import {
+  LayoutDashboard,
+  FileText,
+  Calculator,
+  Activity,
+  Package,
+  Bell,
+  Settings,
+} from 'lucide-react';
 import { LoginPage } from './pages/LoginPage.js';
 import { TwoFactorPage } from './pages/TwoFactorPage.js';
 import { TwoFactorSetupPage } from './pages/TwoFactorSetupPage.js';
@@ -27,6 +36,16 @@ import { ResetPasswordPage } from './pages/ResetPasswordPage.js';
 import { useAuth } from './hooks/useAuth.js';
 import { useModules, type ModuleInfo } from './hooks/useModules.js';
 import { useAuthStore } from './stores/auth.store.js';
+
+const HEDGE_SUB_ITEMS: SidebarSubItem[] = [
+  { id: 'hedge-dashboard', name: 'Dashboard', path: '/hedge', icon: LayoutDashboard },
+  { id: 'hedge-ndfs', name: 'NDFs', path: '/hedge/ndfs', icon: FileText },
+  { id: 'hedge-motor', name: 'Motor MV', path: '/hedge/motor', icon: Calculator },
+  { id: 'hedge-simulacao', name: 'Simulacao', path: '/hedge/simulacao', icon: Activity },
+  { id: 'hedge-estoque', name: 'Estoque', path: '/hedge/estoque', icon: Package },
+  { id: 'hedge-alertas', name: 'Alertas', path: '/hedge/alertas', icon: Bell },
+  { id: 'hedge-config', name: 'Config', path: '/hedge/config', icon: Settings },
+];
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1 } },
@@ -101,6 +120,7 @@ function ProtectedShell() {
     enabled: m.enabled,
     path: m.path,
     icon: m.icon,
+    subItems: m.id === 'hedge' ? HEDGE_SUB_ITEMS : undefined,
   }));
 
   // Build set of enabled module IDs for route guard

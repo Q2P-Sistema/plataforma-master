@@ -1,5 +1,5 @@
 export { ThemeToggle } from './components/ThemeToggle.js';
-export { Sidebar, type SidebarModule } from './components/Sidebar.js';
+export { Sidebar, type SidebarModule, type SidebarSubItem } from './components/Sidebar.js';
 export { TopBar } from './components/TopBar.js';
 export { ShellLayout } from './layouts/ShellLayout.js';
 export { DataTable, type Column } from './components/DataTable.js';

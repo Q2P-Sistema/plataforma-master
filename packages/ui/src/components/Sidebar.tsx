@@ -2,12 +2,20 @@ import { useState } from 'react';
 import { Menu, X, ChevronLeft } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
+export interface SidebarSubItem {
+  id: string;
+  name: string;
+  path: string;
+  icon: LucideIcon;
+}
+
 export interface SidebarModule {
   id: string;
   name: string;
   enabled: boolean;
   path: string;
   icon: LucideIcon;
+  subItems?: SidebarSubItem[];
 }
 
 interface SidebarProps {
@@ -86,38 +94,72 @@ export function Sidebar({
             const Icon = mod.icon;
             const isActive = currentPath.startsWith(mod.path);
             const isEnabled = mod.enabled;
+            const showSub = isActive && isEnabled && mod.subItems && !collapsed;
 
             return (
-              <button
-                key={mod.id}
-                onClick={() => {
-                  if (isEnabled) {
-                    onNavigate(mod.path);
-                    setMobileOpen(false);
-                  }
-                }}
-                disabled={!isEnabled}
-                title={collapsed ? mod.name : undefined}
-                className={`
-                  w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
-                  transition-colors focus:outline-none focus:ring-2 focus:ring-acxe
-                  ${
-                    isActive && isEnabled
-                      ? 'bg-acxe/10 text-acxe'
-                      : isEnabled
-                        ? 'text-atlas-text hover:bg-atlas-border/50'
-                        : 'text-atlas-muted/50 cursor-not-allowed'
-                  }
-                `}
-              >
-                <Icon size={18} className="shrink-0" />
-                {!collapsed && <span className="truncate">{mod.name}</span>}
-                {!collapsed && !isEnabled && (
-                  <span className="ml-auto text-[10px] text-atlas-muted/40 uppercase tracking-wider">
-                    off
-                  </span>
+              <div key={mod.id}>
+                <button
+                  onClick={() => {
+                    if (isEnabled) {
+                      onNavigate(mod.path);
+                      setMobileOpen(false);
+                    }
+                  }}
+                  disabled={!isEnabled}
+                  title={collapsed ? mod.name : undefined}
+                  className={`
+                    w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
+                    transition-colors focus:outline-none focus:ring-2 focus:ring-acxe
+                    ${
+                      isActive && isEnabled
+                        ? 'bg-acxe/10 text-acxe'
+                        : isEnabled
+                          ? 'text-atlas-text hover:bg-atlas-border/50'
+                          : 'text-atlas-muted/50 cursor-not-allowed'
+                    }
+                  `}
+                >
+                  <Icon size={18} className="shrink-0" />
+                  {!collapsed && <span className="truncate">{mod.name}</span>}
+                  {!collapsed && !isEnabled && (
+                    <span className="ml-auto text-[10px] text-atlas-muted/40 uppercase tracking-wider">
+                      off
+                    </span>
+                  )}
+                </button>
+                {showSub && (
+                  <div className="ml-4 mt-0.5 space-y-0.5 border-l border-atlas-border/50 pl-2">
+                    {mod.subItems!.map((sub) => {
+                      const SubIcon = sub.icon;
+                      const isSubActive =
+                        sub.path === mod.path
+                          ? currentPath === sub.path
+                          : currentPath.startsWith(sub.path);
+                      return (
+                        <button
+                          key={sub.id}
+                          onClick={() => {
+                            onNavigate(sub.path);
+                            setMobileOpen(false);
+                          }}
+                          className={`
+                            w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs font-medium
+                            transition-colors focus:outline-none focus:ring-2 focus:ring-acxe
+                            ${
+                              isSubActive
+                                ? 'text-acxe bg-acxe/5'
+                                : 'text-atlas-muted hover:text-atlas-text hover:bg-atlas-border/30'
+                            }
+                          `}
+                        >
+                          <SubIcon size={14} className="shrink-0" />
+                          <span className="truncate">{sub.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 )}
-              </button>
+              </div>
             );
           })}
         </nav>
