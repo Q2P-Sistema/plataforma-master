@@ -53,6 +53,7 @@ export function NDFListPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [liquidarId, setLiquidarId] = useState<string | null>(null);
   const [ptaxLiq, setPtaxLiq] = useState('');
+  const [resultadoManual, setResultadoManual] = useState('');
   const [error, setError] = useState('');
 
   // Form state
@@ -131,7 +132,7 @@ export function NDFListPage() {
                 aria-label={`Ativar NDF ${row.id.slice(0,8)}`}>Ativar</button>
             )}
             {row.status === 'ativo' && (
-              <button onClick={() => { setLiquidarId(row.id); setPtaxLiq(''); }}
+              <button onClick={() => { setLiquidarId(row.id); setPtaxLiq(''); setResultadoManual(''); }}
                 className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-800 hover:bg-blue-200 transition-colors"
                 aria-label={`Liquidar NDF ${row.id.slice(0,8)}`}>Liquidar</button>
             )}
@@ -204,15 +205,37 @@ export function NDFListPage() {
       <Modal open={!!liquidarId} onClose={() => setLiquidarId(null)} title="Liquidar NDF"
         footer={<>
           <button onClick={() => setLiquidarId(null)} className="px-4 py-2 rounded-lg border border-atlas-border text-atlas-text text-sm">Cancelar</button>
-          <button onClick={() => { if (liquidarId && ptaxLiq) actionMut.mutate({ id: liquidarId, action: 'liquidar', body: { ptax_liquidacao: parseFloat(ptaxLiq) } }); }}
-            disabled={!ptaxLiq || actionMut.isPending}
+          <button onClick={() => {
+            if (!liquidarId) return;
+            const body: Record<string, number> = {};
+            if (resultadoManual) body.resultado_brl = parseFloat(resultadoManual);
+            if (ptaxLiq) body.ptax_liquidacao = parseFloat(ptaxLiq);
+            if (!body.resultado_brl && !body.ptax_liquidacao) return;
+            actionMut.mutate({ id: liquidarId, action: 'liquidar', body });
+          }}
+            disabled={(!ptaxLiq && !resultadoManual) || actionMut.isPending}
             className="px-4 py-2 rounded-lg bg-acxe text-white text-sm font-medium disabled:opacity-50">{actionMut.isPending ? 'Liquidando...' : 'Liquidar'}</button>
         </>}>
-        <div>
-          <label htmlFor="ptax-liq" className="block text-sm font-medium text-atlas-text mb-1">PTAX de Liquidacao</label>
-          <input id="ptax-liq" type="number" step="0.0001" value={ptaxLiq} placeholder="5.4500"
-            onChange={(e: ChangeEvent<HTMLInputElement>) => setPtaxLiq(e.target.value)}
-            className="w-full px-3 py-2 rounded-lg border border-atlas-border bg-atlas-bg text-atlas-text text-sm focus:outline-none focus:ring-2 focus:ring-acxe" />
+        <div className="space-y-3">
+          <div>
+            <label htmlFor="ptax-liq" className="block text-sm font-medium text-atlas-text mb-1">PTAX de Liquidacao</label>
+            <input id="ptax-liq" type="number" step="0.0001" value={ptaxLiq} placeholder="5.4500"
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setPtaxLiq(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-atlas-border bg-atlas-bg text-atlas-text text-sm focus:outline-none focus:ring-2 focus:ring-acxe" />
+            <p className="text-[9px] text-atlas-muted mt-1">Preencha para calculo automatico: resultado = notional * (taxa - ptax)</p>
+          </div>
+          <div className="relative">
+            <div className="absolute inset-x-0 top-0 flex items-center justify-center -mt-1">
+              <span className="text-[9px] text-atlas-muted bg-atlas-card px-2">ou informe direto</span>
+            </div>
+          </div>
+          <div>
+            <label htmlFor="resultado-liq" className="block text-sm font-medium text-atlas-text mb-1">Resultado BRL (manual)</label>
+            <input id="resultado-liq" type="number" step="0.01" value={resultadoManual} placeholder="-50000.00"
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setResultadoManual(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-atlas-border bg-atlas-bg text-atlas-text text-sm focus:outline-none focus:ring-2 focus:ring-acxe" />
+            <p className="text-[9px] text-atlas-muted mt-1">Valor informado pelo banco. Sobrescreve o calculo automatico.</p>
+          </div>
         </div>
       </Modal>
     </div>

@@ -94,7 +94,7 @@ export async function ativarNdf(id: string): Promise<NdfRegistro> {
 
 export async function liquidarNdf(
   id: string,
-  ptaxLiquidacao: number,
+  opts: { ptax_liquidacao?: number; resultado_brl?: number },
 ): Promise<NdfRegistro> {
   const db = getDb();
 
@@ -111,23 +111,36 @@ export async function liquidarNdf(
 
   const notional = new Decimal(ndf.notionalUsd);
   const taxaNdf = new Decimal(ndf.taxaNdf);
-  const ptaxLiq = new Decimal(ptaxLiquidacao);
 
-  // resultado_brl = notional * (taxa_ndf - ptax_liquidacao)
-  const resultadoBrl = notional.times(taxaNdf.minus(ptaxLiq));
+  let resultadoBrl: Decimal;
+  let ptaxLiq: Decimal | null = null;
+
+  if (opts.resultado_brl != null) {
+    // Manual input — bank may charge different from PTAX
+    resultadoBrl = new Decimal(opts.resultado_brl);
+    if (opts.ptax_liquidacao != null) {
+      ptaxLiq = new Decimal(opts.ptax_liquidacao);
+    }
+  } else if (opts.ptax_liquidacao != null) {
+    // Auto-calc: resultado = notional * (taxa_ndf - ptax_liquidacao)
+    ptaxLiq = new Decimal(opts.ptax_liquidacao);
+    resultadoBrl = notional.times(taxaNdf.minus(ptaxLiq));
+  } else {
+    throw new NdfError('VALIDATION_ERROR', 'ptax_liquidacao ou resultado_brl e obrigatorio');
+  }
 
   const [updated] = await db
     .update(ndfRegistro)
     .set({
       status: 'liquidado',
-      ptaxLiquidacao: ptaxLiq.toFixed(4),
+      ptaxLiquidacao: ptaxLiq ? ptaxLiq.toFixed(4) : null,
       resultadoBrl: resultadoBrl.toFixed(2),
     })
     .where(eq(ndfRegistro.id, id))
     .returning();
 
   logger.info(
-    { id, resultado: resultadoBrl.toNumber(), ptaxLiquidacao },
+    { id, resultado: resultadoBrl.toNumber(), ptax: ptaxLiq?.toNumber() },
     'NDF liquidado',
   );
 

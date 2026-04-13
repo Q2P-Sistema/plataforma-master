@@ -10,10 +10,14 @@ interface CamadasResult { l1_pct: number; l2_pct: number; l3_pct: number; }
 interface Recomendacao {
   bucket_id: string; mes_ref: string; instrumento: string;
   notional_sugerido: number; gap_atual: number; cobertura_alvo: number;
+  taxa_ndf: number; custo_ndf_brl: number;
+  prioridade: 'critica' | 'alta' | 'media' | 'nenhuma';
+  status: 'ok' | 'sub_hedged'; acao_recomendada: string;
 }
 interface MotorResult {
   camadas: CamadasResult; recomendacoes: Recomendacao[];
   cobertura_global_pct: number; gap_total_usd: number;
+  custo_acao_brl: number;
 }
 
 const fmtK = (v: number) => '$' + Math.round(v / 1000) + 'K';
@@ -114,12 +118,20 @@ export function MotorMVPage() {
     });
   }
 
+  const prioridadeStyle = (p: string) =>
+    p === 'critica' ? 'bg-red-500/10 text-red-600 border-red-500/20'
+    : p === 'alta' ? 'bg-amber-500/10 text-amber-600 border-amber-500/20'
+    : p === 'media' ? 'bg-blue-500/10 text-blue-600 border-blue-500/20'
+    : 'bg-gray-500/10 text-gray-500 border-gray-500/20';
+
   const columns: Column<Recomendacao>[] = [
     { key: 'mes_ref', header: 'Bucket', render: (r) => r.mes_ref.slice(0, 7) },
-    { key: 'gap_atual', header: 'Posicao USD', render: (r) => fmtK(r.gap_atual) },
-    { key: 'notional_sugerido', header: 'NDF a contratar', render: (r) => <span className="text-red-600">{fmtK(r.notional_sugerido)}</span> },
+    { key: 'gap_atual', header: 'Gap USD', render: (r) => fmtK(r.gap_atual) },
+    { key: 'notional_sugerido', header: 'NDF a contratar', render: (r) => r.notional_sugerido > 0 ? <span className="text-red-600">{fmtK(r.notional_sugerido)}</span> : <span className="text-emerald-600">OK</span> },
     { key: 'instrumento', header: 'Instrumento', render: (r) => <span className="text-xs font-semibold">{r.instrumento}</span> },
+    { key: 'taxa_ndf', header: 'Taxa NDF', render: (r) => r.taxa_ndf > 0 ? `R$ ${r.taxa_ndf.toFixed(2)}` : '—' },
     { key: 'cobertura_alvo', header: 'Cobertura Alvo', render: (r) => `${r.cobertura_alvo.toFixed(1)}%` },
+    { key: 'prioridade', header: 'Prioridade', render: (r) => <span className={`inline-flex text-[10px] px-1.5 py-0.5 rounded border font-semibold ${prioridadeStyle(r.prioridade)}`}>{r.prioridade}</span> },
   ];
 
   return (
@@ -147,7 +159,7 @@ export function MotorMVPage() {
 
         {/* Summary cards */}
         {result && (
-          <div className="grid grid-cols-2 gap-3 mb-5">
+          <div className="grid grid-cols-3 gap-3 mb-5">
             <div className="bg-atlas-bg border border-atlas-border rounded-lg p-3">
               <p className="text-[9px] tracking-[2px] text-atlas-muted uppercase mb-1">Cobertura Global</p>
               <p className="text-2xl font-bold" style={{ color: result.cobertura_global_pct >= 60 ? '#059669' : result.cobertura_global_pct >= 40 ? '#d97706' : '#dc2626' }}>
@@ -161,6 +173,13 @@ export function MotorMVPage() {
                 {fmtM(Math.abs(result.gap_total_usd))}
               </p>
               <p className="text-[10px] text-atlas-muted mt-1">Exposicao residual descoberta</p>
+            </div>
+            <div className="bg-atlas-bg border border-atlas-border rounded-lg p-3">
+              <p className="text-[9px] tracking-[2px] text-atlas-muted uppercase mb-1">Custo da Acao</p>
+              <p className="text-2xl font-bold text-purple-600">
+                R$ {Math.round(result.custo_acao_brl / 1000)}K
+              </p>
+              <p className="text-[10px] text-atlas-muted mt-1">Custo estimado para fechar gaps</p>
             </div>
           </div>
         )}

@@ -8,7 +8,7 @@ import { criarNdf, ativarNdf, liquidarNdf, cancelarNdf, listarNdfs, NdfError } f
 import { getHistoricoPtax } from '../services/ptax.service.js';
 import { simularMargem } from '../services/simulacao.service.js';
 import { getEstoque, getLocalidades, salvarLocalidadesAtivas } from '../services/estoque.service.js';
-import { listarAlertas, marcarLido, resolver } from '../services/alerta.service.js';
+import { listarAlertas, marcarLido, resolver, gerarAlertas } from '../services/alerta.service.js';
 import { getConfig, updateConfig, getTaxasNdf, inserirTaxaNdf } from '../services/config.service.js';
 
 const logger = createLogger('hedge:routes');
@@ -36,6 +36,9 @@ router.get('/api/v1/hedge/posicao', async (req: Request, res: Response) => {
     await recalcularBuckets();
     const empresa = req.query.empresa as 'acxe' | 'q2p' | undefined;
     const result = await calcularPosicao({ empresa });
+
+    // Generate alerts for sub-hedged buckets (GAP-13)
+    gerarAlertas(result.buckets).catch((err) => logger.warn({ err }, 'Erro ao gerar alertas'));
 
     sendSuccess(res, {
       kpis: {
@@ -97,8 +100,10 @@ router.post(
       sendSuccess(res, {
         camadas: result.camadas,
         recomendacoes: result.recomendacoes,
+        alertas: result.alertas,
         cobertura_global_pct: result.cobertura_global_pct,
         gap_total_usd: result.gap_total_usd,
+        custo_acao_brl: result.custo_acao_brl,
       });
     } catch (err) {
       logger.error({ err }, 'Erro ao calcular motor');
@@ -209,17 +214,18 @@ router.patch('/api/v1/hedge/ndfs/:id/ativar', async (req: Request, res: Response
 router.patch('/api/v1/hedge/ndfs/:id/liquidar', async (req: Request, res: Response) => {
   try {
     const id = req.params.id as string;
-    const { ptax_liquidacao } = req.body;
+    const { ptax_liquidacao, resultado_brl } = req.body;
 
-    if (!ptax_liquidacao) {
-      sendError(res, 'VALIDATION_ERROR', 'ptax_liquidacao e obrigatorio', 400);
+    if (!ptax_liquidacao && resultado_brl == null) {
+      sendError(res, 'VALIDATION_ERROR', 'ptax_liquidacao ou resultado_brl e obrigatorio', 400);
       return;
     }
 
-    const ndf = await liquidarNdf(id, ptax_liquidacao);
+    const ndf = await liquidarNdf(id, { ptax_liquidacao, resultado_brl });
     sendSuccess(res, {
       status: 'liquidado',
       resultado_brl: Number(ndf.resultadoBrl),
+      ptax_liquidacao: ndf.ptaxLiquidacao ? Number(ndf.ptaxLiquidacao) : null,
     });
   } catch (err) {
     if (err instanceof NdfError) {
