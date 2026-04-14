@@ -101,6 +101,7 @@ export async function getHistoricoPtax(dias: number = 30) {
         atualizada: true,
         ptax_anterior: vendaPrev,
         variacao_pct: vendaPrev > 0 ? parseFloat(((venda - vendaPrev) / vendaPrev * 100).toFixed(4)) : 0,
+        fetchedAt: last.createdAt instanceof Date ? last.createdAt.toISOString() : String(last.createdAt),
       },
       historico: local.map((r) => ({
         data_ref: r.dataRef,
