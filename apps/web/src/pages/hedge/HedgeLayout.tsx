@@ -56,12 +56,5 @@ export function HedgePtaxBadge() {
 }
 
 export function HedgeLayout() {
-  return (
-    <div className="space-y-0">
-      <div className="flex items-center justify-end px-1 pb-2">
-        <HedgePtaxBadge />
-      </div>
-      <Outlet />
-    </div>
-  );
+  return <Outlet />;
 }

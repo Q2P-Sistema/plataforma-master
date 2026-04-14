@@ -5,6 +5,7 @@ interface TopBarProps {
   userName: string;
   userRole: string;
   onLogout: () => void;
+  centerSlot?: React.ReactNode;
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -19,10 +20,10 @@ const ROLE_COLORS: Record<string, string> = {
   diretor: 'bg-ndf/10 text-ndf',
 };
 
-export function TopBar({ userName, userRole, onLogout }: TopBarProps) {
+export function TopBar({ userName, userRole, onLogout, centerSlot }: TopBarProps) {
   return (
     <header className="h-16 bg-atlas-card border-b border-atlas-border flex items-center justify-between px-6">
-      <div />
+      <div className="flex-1">{centerSlot}</div>
 
       <div className="flex items-center gap-4">
         <ThemeToggle />
