@@ -1,5 +1,5 @@
 import { sql, desc } from 'drizzle-orm';
-import { getDb } from '@atlas/core';
+import { getDb, getPool } from '@atlas/core';
 import { ptaxHistorico, alerta } from '@atlas/db';
 import { fetchPtaxAtual, fetchPtaxHistorico, type PtaxQuote } from '@atlas/integration-bcb';
 
