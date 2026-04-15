@@ -13,15 +13,23 @@
 - `HedgeLayout` criado como wrapper compartilhado — badge PTAX (valor + var% + horário) aparece no header de todas as abas do módulo
 - Backend: `fetchedAt` exposto no endpoint `/api/v1/hedge/ptax`
 
-### T02 — Badge PTAX não aparece no header das abas
-**Problema:** O badge com valor do dólar não está visível no topo das páginas do módulo hedge.
-**Suspeita:** O `HedgeLayout` pode não estar sendo renderizado corretamente com nested routes, ou o posicionamento no DOM não está sobrepondo o header do shell da aplicação.
-**Ação:** Investigar por que o `HedgeLayout` não exibe o badge; corrigir posicionamento ou integração com o layout principal.
+### T02 — Badge PTAX não aparece no TopBar — **PENDENTE (2ª tentativa falhou)**
+**Problema:** O badge com valor do dólar não está visível no header superior das abas hedge.
+**O que foi feito:** Adicionado `centerSlot` no `TopBar`, passado via `ShellLayout`, injetado `HedgePtaxBadge` no `App.tsx` quando rota começa com `/hedge`. Badge movido do `HedgeLayout` para o `TopBar`.
+**Ainda não funciona:** Problema persiste após as correções. Requer investigação mais profunda — possível problema de renderização, CSS ou dados não carregando.
+**Próximo passo:** Inspecionar o DOM/console do browser para entender se o componente está montando e se a query está retornando dados.
 
-### T03 — Gráfico histórico PTAX vazio
+### T03 — Gráfico histórico PTAX vazio — **PENDENTE (2ª tentativa falhou)**
 **Problema:** O mini gráfico de 15 dias no card PTAX não renderiza dados.
-**Causa provável:** O endpoint `/api/v1/hedge/ptax?dias=15` usa a tabela `hedge.ptax_historico` que pode estar sem dados populados.
-**Ação:** Trocar a fonte do gráfico para a tabela `public.tbl_cotacaoDolar` que já existe no BD com dados reais. Ajustar o endpoint ou criar rota dedicada lendo dessa tabela.
+**O que foi feito:** Trocada fonte de `hedge.ptax_historico` para `tbl_cotacaoDolar` como fonte primária.
+**Ainda não funciona:** Gráfico continua sem dados. Verificar se a query está chegando corretamente ao frontend e se o campo `historico` está sendo mapeado para `ptaxMiniData`.
+
+### T04 — Card "Receita Projetada" exibindo BRL em vez de USD — **PENDENTE**
+**Problema:** KPI card mostra `recebiveis_brl` (R$ 59.8M) com label "Receita BRL Projetada". Para o módulo de hedge o valor relevante é o USD.
+**Dados confirmados no BD:**
+- BRL total: R$ 59.9M (A VENCER + ATRASADO + VENCE HOJE, janela 90d)
+- USD equivalente: $ 11.9M (convertido pela PTAX atual via `vw_hedge_receber_usd`)
+**Correção:** trocar `kpis.recebiveis_brl` → `kpis.recebiveis_usd` no `PositionDashboard.tsx`, label "Receita USD Projetada", formato `$ 11.9M`.
 
 ---
 
