@@ -212,7 +212,7 @@ export function PositionDashboard() {
       {/* KPI Strip */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
         <KpiCard label="Exposicao USD Total" value={fmtM(kpis.exposicao_usd_total)} color="#0077cc" src="acxe" sub="Titulos a pagar em aberto" />
-        <KpiCard label="Receita BRL Projetada" value={fmtBrlM(kpis.recebiveis_brl)} color="#1a9944" src="q2p" sub="Contas a receber 90d" />
+        <KpiCard label="Receita USD Projetada" value={fmtM(kpis.recebiveis_usd)} color="#1a9944" src="q2p" sub="Contas a receber 90d" />
         <KpiCard label="Estoque nao pago" value={fmtPct(kpis.pct_nao_pago)} color="#d97706" src="calc" sub={`R$ ${(kpis.est_importado_brl / 1e6).toFixed(1)}M importado`} />
         <KpiCard label="Cobertura NDF Ativa" value={fmtM(kpis.ndf_ativo_usd)} color="#7c3aed" src="manual" sub={fmtPct(kpis.cobertura_pct) + ' da exposicao'} />
         <KpiCard label="Exposicao Liquida" value={fmtM(kpis.gap_usd)} color="#059669" src="calc" sub="Residual descoberto" />
