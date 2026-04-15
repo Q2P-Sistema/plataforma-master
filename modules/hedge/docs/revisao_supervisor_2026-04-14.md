@@ -13,32 +13,29 @@
 - `HedgeLayout` criado como wrapper compartilhado — badge PTAX (valor + var% + horário) aparece no header de todas as abas do módulo
 - Backend: `fetchedAt` exposto no endpoint `/api/v1/hedge/ptax`
 
-### T02 — Badge PTAX não aparece no TopBar — **PENDENTE (2ª tentativa falhou)**
-**Problema:** O badge com valor do dólar não está visível no header superior das abas hedge.
-**O que foi feito:** Adicionado `centerSlot` no `TopBar`, passado via `ShellLayout`, injetado `HedgePtaxBadge` no `App.tsx` quando rota começa com `/hedge`. Badge movido do `HedgeLayout` para o `TopBar`.
-**Ainda não funciona:** Problema persiste após as correções. Requer investigação mais profunda — possível problema de renderização, CSS ou dados não carregando.
-**Próximo passo:** Inspecionar o DOM/console do browser para entender se o componente está montando e se a query está retornando dados.
+### ~~T02~~ — Badge PTAX não aparece no TopBar — **IMPLEMENTADO**
+- `topBarSlot` passa `<HedgePtaxBadge />` via `ShellLayout` → `TopBar.centerSlot` quando rota começa com `/hedge`
+- Badge aparece no header global em todas as abas do módulo hedge
 
-### T03 — Gráfico histórico PTAX vazio — **PENDENTE (2ª tentativa falhou)**
-**Problema:** O mini gráfico de 15 dias no card PTAX não renderiza dados.
-**O que foi feito:** Trocada fonte de `hedge.ptax_historico` para `tbl_cotacaoDolar` como fonte primária.
-**Ainda não funciona:** Gráfico continua sem dados. Verificar se a query está chegando corretamente ao frontend e se o campo `historico` está sendo mapeado para `ptaxMiniData`.
+### ~~T03~~ — Gráfico histórico PTAX vazio — **IMPLEMENTADO**
+- Root cause: `getPool` não estava importado em `modules/hedge/src/services/ptax.service.ts` — causava `ReferenceError` silencioso, API retornava 500
+- Fix: adicionado `getPool` ao import de `@atlas/core`
+- Melhorias adicionais: labels com 3 chars mês PT-BR ("15 Abr"), linha de tendência (regressão linear) no gráfico, ponto intraday do boletim BCB appended como último ponto quando mais recente que `tbl_cotacaoDolar`
 
-### T04 — Card "Receita Projetada" exibindo BRL em vez de USD — **PENDENTE**
-**Problema:** KPI card mostra `recebiveis_brl` (R$ 59.8M) com label "Receita BRL Projetada". Para o módulo de hedge o valor relevante é o USD.
-**Dados confirmados no BD:**
-- BRL total: R$ 59.9M (A VENCER + ATRASADO + VENCE HOJE, janela 90d)
-- USD equivalente: $ 11.9M (convertido pela PTAX atual via `vw_hedge_receber_usd`)
-**Correção:** trocar `kpis.recebiveis_brl` → `kpis.recebiveis_usd` no `PositionDashboard.tsx`, label "Receita USD Projetada", formato `$ 11.9M`.
+### ~~T04~~ — Card "Receita Projetada" exibindo BRL em vez de USD — **IMPLEMENTADO**
+- Trocado `recebiveis_brl` → `recebiveis_usd`, label "Receita USD Projetada", formato `$ 11.9M` (`fmtM`)
+- Arquivo: `apps/web/src/pages/hedge/PositionDashboard.tsx` linha 215
 
-### T05 — PTAX boletins intraday BCB — **EM IMPLEMENTAÇÃO**
-**Problema:** Fonte atual (SGS-1) publica fechamento diário. Card exibe "Atualizado HH:MM" referente ao fetch do servidor, não ao boletim BCB. Frontend faz polling a cada 15min desnecessariamente.
-**Solução:**
-- Trocar `fetchPtaxAtual` para endpoint de boletins: `olinda.bcb.gov.br/.../CotacaoDolarDia`
-- Retornar `dataHoraCotacao` do BCB como `fetchedAt` (timestamp real do boletim)
-- Redis TTL: 1 hora (boletins saem ~3x/dia)
-- Remover `refetchInterval` do frontend (sem polling)
-- Label: "Boletim BCB HH:MM" em vez de "Atualizado HH:MM"
+### ~~T05~~ — PTAX boletins intraday BCB — **IMPLEMENTADO**
+- Migrado de SGS-1 (fechamento diário) para `CotacaoDolarDia` (boletins ~3x/dia: ~10h, ~12h, ~16h BRT)
+- `fetchedAt` = `dataHoraCotacao` real do boletim BCB (não timestamp do servidor)
+- Redis TTL: 3600s. Frontend: staleTime 1h, sem `refetchInterval`
+- Label: "Boletim BCB HH:MM · Ref. YYYY-MM-DD"
+
+### T06 — Fórmula de exposição cambial — **DISCUSSÃO EM ABERTO**
+**Proposta do supervisor:** `exposicao_usd_total = total_pagar_usd - estoque_importado (no chão + embarcados)`
+**Interpretação:** o estoque de importados já comprados (em armazém ou em trânsito) representa dólares que já saíram do caixa ou têm compromisso firme — abater da exposição dá o líquido real a hedgear.
+**Pendente:** validar os componentes exatos (no chão = `est_importado_brl` / PTAX? embarcados = `est_transito_brl`?) e comparar com cálculo atual de `est_nao_pago_usd`.
 
 ---
 
