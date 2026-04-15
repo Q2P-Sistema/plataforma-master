@@ -1,5 +1,5 @@
 import { sql, desc } from 'drizzle-orm';
-import { getDb } from '@atlas/core';
+import { getDb, getPool } from '@atlas/core';
 import { ptaxHistorico, alerta } from '@atlas/db';
 import { fetchPtaxAtual, fetchPtaxHistorico, type PtaxQuote } from '@atlas/integration-bcb';
 
@@ -74,63 +74,86 @@ export async function getVariacao30d(): Promise<number> {
 }
 
 export async function getHistoricoPtax(dias: number = 30) {
-  const db = getDb();
+  const pool = getPool();
 
-  // First try local DB
   const desde = new Date();
   desde.setDate(desde.getDate() - dias);
   const desdeStr = desde.toISOString().split('T')[0]!;
 
-  const local = await db
-    .select()
-    .from(ptaxHistorico)
-    .where(sql`${ptaxHistorico.dataRef} >= ${desdeStr}`)
-    .orderBy(ptaxHistorico.dataRef);
+  // Primary source: tbl_cotacaoDolar (OMIE — always populated)
+  const { rows } = await pool.query<{
+    data_ref: string;
+    venda: string;
+    compra: string;
+  }>(`
+    SELECT
+      "dataCotacao"::text  AS data_ref,
+      "cotacaoVenda"::text AS venda,
+      "cotacaoCompra"::text AS compra
+    FROM "tbl_cotacaoDolar"
+    WHERE "dataCotacao" >= $1
+    ORDER BY "dataCotacao" ASC
+  `, [desdeStr]);
 
-  if (local.length > 0) {
-    const last = local[local.length - 1]!;
-    const prev = local.length > 1 ? local[local.length - 2]! : last;
+  if (rows.length > 0) {
+    const last = rows[rows.length - 1]!;
+    const prev = rows.length > 1 ? rows[rows.length - 2]! : last;
     const venda = Number(last.venda);
     const vendaPrev = Number(prev.venda);
 
+    // Persist latest to hedge.ptax_historico for snapshot use
+    const db = getDb();
+    await db
+      .insert(ptaxHistorico)
+      .values({
+        dataRef: last.data_ref,
+        venda: venda.toFixed(4),
+        compra: Number(last.compra).toFixed(4),
+      })
+      .onConflictDoUpdate({
+        target: ptaxHistorico.dataRef,
+        set: { venda: venda.toFixed(4), compra: Number(last.compra).toFixed(4) },
+      });
+
+    const [persisted] = await db
+      .select()
+      .from(ptaxHistorico)
+      .where(sql`${ptaxHistorico.dataRef} = ${last.data_ref}`)
+      .limit(1);
+
     return {
       atual: {
-        dataRef: last.dataRef,
+        dataRef: last.data_ref,
         venda,
         compra: Number(last.compra),
         atualizada: true,
         ptax_anterior: vendaPrev,
         variacao_pct: vendaPrev > 0 ? parseFloat(((venda - vendaPrev) / vendaPrev * 100).toFixed(4)) : 0,
+        fetchedAt: persisted?.createdAt instanceof Date
+          ? persisted.createdAt.toISOString()
+          : persisted?.createdAt ? String(persisted.createdAt) : new Date().toISOString(),
       },
-      historico: local.map((r) => ({
-        data_ref: r.dataRef,
+      historico: rows.map((r) => ({
+        data_ref: r.data_ref,
         venda: Number(r.venda),
         compra: Number(r.compra),
       })),
     };
   }
 
-  // Fallback: fetch from BCB and persist
+  // Fallback: fetch from BCB if tbl_cotacaoDolar has no data for the period
   const bcbData = await fetchPtaxHistorico(dias);
+  const db = getDb();
   for (const q of bcbData) {
     await db
       .insert(ptaxHistorico)
-      .values({
-        dataRef: q.dataRef,
-        venda: q.venda.toFixed(4),
-        compra: q.compra.toFixed(4),
-      })
+      .values({ dataRef: q.dataRef, venda: q.venda.toFixed(4), compra: q.compra.toFixed(4) })
       .onConflictDoNothing();
   }
 
   const atual = await getAtual();
-
   return {
     atual,
-    historico: bcbData.map((q) => ({
-      data_ref: q.dataRef,
-      venda: q.venda,
-      compra: q.compra,
-    })),
+    historico: bcbData.map((q) => ({ data_ref: q.dataRef, venda: q.venda, compra: q.compra })),
   };
 }

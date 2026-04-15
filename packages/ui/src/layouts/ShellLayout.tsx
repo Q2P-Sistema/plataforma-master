@@ -10,6 +10,7 @@ interface ShellLayoutProps {
   userRole: string;
   onLogout: () => void;
   children: React.ReactNode;
+  topBarSlot?: React.ReactNode;
 }
 
 export function ShellLayout({
@@ -20,6 +21,7 @@ export function ShellLayout({
   userRole,
   onLogout,
   children,
+  topBarSlot,
 }: ShellLayoutProps) {
   const [collapsed, setCollapsed] = useState(false);
 
@@ -35,7 +37,7 @@ export function ShellLayout({
       />
 
       <div className="flex-1 flex flex-col min-w-0">
-        <TopBar userName={userName} userRole={userRole} onLogout={onLogout} />
+        <TopBar userName={userName} userRole={userRole} onLogout={onLogout} centerSlot={topBarSlot} />
 
         <main className="flex-1 p-6 overflow-y-auto">{children}</main>
       </div>

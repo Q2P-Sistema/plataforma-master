@@ -4,10 +4,13 @@ import { DataTable, type Column } from '@atlas/ui';
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend,
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  LineChart, Line,
+  LineChart, Line, ReferenceLine,
 } from 'recharts';
 
 interface PtaxQuote { dataRef: string; venda: number; compra: number; atualizada: boolean; }
+interface PtaxHistoricoItem { data_ref: string; venda: number; compra: number; }
+interface PtaxAtualComVariacao extends PtaxQuote { ptax_anterior: number; variacao_pct: number; fetchedAt?: string; }
+interface PtaxResult { atual: PtaxAtualComVariacao; historico: PtaxHistoricoItem[]; }
 
 interface Kpis {
   exposure_usd: number;
@@ -43,11 +46,6 @@ interface Bucket {
   status: string;
 }
 
-interface HistoricoItem {
-  data_ref: string;
-  ptax_ref: number;
-  cobertura_pct: number;
-}
 
 const fmtM = (v: number) => '$' + (v / 1e6).toFixed(2) + 'M';
 const fmtBrlM = (v: number) => 'R$' + (v / 1e6).toFixed(1) + 'M';
@@ -104,13 +102,15 @@ export function PositionDashboard() {
     },
   });
 
-  const { data: historico = [] } = useQuery<HistoricoItem[]>({
-    queryKey: ['hedge', 'posicao', 'historico'],
+  const { data: ptaxData } = useQuery<PtaxResult>({
+    queryKey: ['hedge', 'ptax', '15d'],
     queryFn: async () => {
-      const res = await fetch('/api/v1/hedge/posicao/historico?dias=90', { credentials: 'include' });
+      const res = await fetch('/api/v1/hedge/ptax?dias=15', { credentials: 'include' });
       const body = await res.json() as any;
-      return body.data ?? [];
+      return body.data;
     },
+    staleTime: 5 * 60 * 1000,
+    refetchInterval: 15 * 60 * 1000,
   });
 
   if (isLoading || !data) {
@@ -133,11 +133,38 @@ export function PositionDashboard() {
     ndf: b.ndf_usd / 1e6,
   }));
 
-  // Line: PTAX historico
-  const ptaxLineData = historico.map(h => ({
-    data: h.data_ref.slice(5),
-    ptax: h.ptax_ref,
-  }));
+  // PTAX card data
+  const ptaxAtual = ptaxData?.atual;
+  const ptaxSubiu = (ptaxAtual?.variacao_pct ?? 0) > 0;
+  const ptaxNeutro = (ptaxAtual?.variacao_pct ?? 0) === 0;
+  const ptaxColor = ptaxNeutro ? '#6b7280' : ptaxSubiu ? '#dc2626' : '#059669';
+  const ptaxArrow = ptaxNeutro ? '' : ptaxSubiu ? '▲' : '▼';
+  const ptaxVarStr = ptaxAtual ? `${ptaxArrow} ${Math.abs(ptaxAtual.variacao_pct).toFixed(2)}%` : '';
+
+  const MESES_PT = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const ptaxMiniData = (() => {
+    const base = (ptaxData?.historico ?? []).map(h => {
+      const [, mm, dd] = h.data_ref.split('-');
+      const label = `${dd} ${MESES_PT[parseInt(mm!, 10) - 1]}`;
+      return { data: label, venda: h.venda };
+    });
+    if (base.length < 2) return base;
+    const n = base.length;
+    const sumX = (n * (n - 1)) / 2;
+    const sumX2 = (n * (n - 1) * (2 * n - 1)) / 6;
+    const sumY = base.reduce((acc, p) => acc + p.venda, 0);
+    const sumXY = base.reduce((acc, p, i) => acc + i * p.venda, 0);
+    const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+    const intercept = (sumY - slope * sumX) / n;
+    return base.map((p, i) => ({ ...p, tendencia: parseFloat((intercept + slope * i).toFixed(4)) }));
+  })();
+
+  function formatFetchedAt(iso?: string) {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+      + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  }
 
   // Bucket table columns
   const bucketColumns: Column<Bucket>[] = [
@@ -216,25 +243,10 @@ export function PositionDashboard() {
       </div>
 
       {/* Charts row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-atlas-card border border-atlas-border rounded-lg p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <p className="text-xs text-atlas-muted uppercase tracking-[2px]">Cambio PTAX</p>
-            <SourceBadge src="bcb" />
-          </div>
-          <ResponsiveContainer width="100%" height={180}>
-            <LineChart data={ptaxLineData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(221,225,232,0.5)" />
-              <XAxis dataKey="data" tick={{ fontSize: 9 }} />
-              <YAxis tick={{ fontSize: 9 }} domain={['auto', 'auto']} tickFormatter={(v: number) => `R$${v}`} />
-              <Tooltip formatter={(v) => `R$ ${Number(v).toFixed(4)}`} />
-              <Line type="monotone" dataKey="ptax" stroke="#059669" strokeWidth={2} dot={{ r: 2 }} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-atlas-card border border-atlas-border rounded-lg p-4">
           <p className="text-xs text-atlas-muted uppercase tracking-[2px] mb-2">Exposicao por Bucket ($M)</p>
-          <ResponsiveContainer width="100%" height={180}>
+          <ResponsiveContainer width="100%" height={220}>
             <BarChart data={barData}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(221,225,232,0.5)" />
               <XAxis dataKey="mes" tick={{ fontSize: 9 }} />
@@ -246,29 +258,40 @@ export function PositionDashboard() {
           </ResponsiveContainer>
         </div>
         <div className="bg-atlas-card border border-atlas-border rounded-lg p-4">
-          <p className="text-xs text-atlas-muted uppercase tracking-[2px] mb-2">PTAX Atual</p>
-          <div className="space-y-3 mt-4">
-            <div className="flex justify-between items-center">
-              <span className="text-xs text-atlas-muted">Spot (venda)</span>
-              <span className="text-lg font-bold text-emerald-600">R$ {Number(kpis.ptax_atual.venda).toFixed(4)}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-xs text-atlas-muted">Data ref.</span>
-              <span className="text-xs text-atlas-text">{kpis.ptax_atual.dataRef}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-xs text-atlas-muted">Pagar mercadoria</span>
-              <span className="text-xs text-atlas-text">{fmtM(kpis.pagar_mercadoria_usd)}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-xs text-atlas-muted">Pagar despesas</span>
-              <span className="text-xs text-atlas-text">{fmtM(kpis.pagar_despesa_usd)}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-xs text-atlas-muted">Import. pendentes</span>
-              <span className="text-xs text-amber-600">{fmtM(kpis.importacoes_pendentes_usd)}</span>
-            </div>
+          <div className="flex items-center gap-2 mb-3">
+            <p className="text-xs text-atlas-muted uppercase tracking-[2px]">USD / BRL — PTAX</p>
+            <SourceBadge src="bcb" />
           </div>
+          {ptaxAtual ? (
+            <>
+              <div className="flex items-baseline gap-3 mb-1">
+                <span className="text-3xl font-bold" style={{ color: ptaxColor }}>
+                  R$ {ptaxAtual.venda.toFixed(4)}
+                </span>
+                {!ptaxNeutro && (
+                  <span className="text-sm font-semibold" style={{ color: ptaxColor }}>{ptaxVarStr}</span>
+                )}
+              </div>
+              <div className="flex items-center gap-3 mb-3">
+                <span className="text-xs text-atlas-muted">
+                  Ref. {ptaxAtual.dataRef} · Atualizado {formatFetchedAt(ptaxAtual.fetchedAt)}
+                </span>
+              </div>
+              <ResponsiveContainer width="100%" height={130}>
+                <LineChart data={ptaxMiniData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(221,225,232,0.3)" />
+                  <XAxis dataKey="data" tick={{ fontSize: 9 }} />
+                  <YAxis tick={{ fontSize: 9 }} domain={['auto', 'auto']} tickFormatter={(v: number) => v.toFixed(2)} width={38} />
+                  <Tooltip formatter={(v) => `R$ ${Number(v).toFixed(4)}`} />
+                  <ReferenceLine y={ptaxAtual.ptax_anterior} stroke="rgba(107,114,128,0.4)" strokeDasharray="4 2" />
+                  <Line type="monotone" dataKey="venda" stroke={ptaxColor} strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="tendencia" stroke="rgba(107,114,128,0.7)" strokeWidth={2} strokeDasharray="5 3" dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </>
+          ) : (
+            <p className="text-xs text-atlas-muted">Carregando...</p>
+          )}
         </div>
       </div>
 

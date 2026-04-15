@@ -31,6 +31,7 @@ import { MarginSimulationPage } from './pages/hedge/MarginSimulationPage.js';
 import { InventoryPage } from './pages/hedge/InventoryPage.js';
 import { AlertsPage } from './pages/hedge/AlertsPage.js';
 import { ConfigPage } from './pages/hedge/ConfigPage.js';
+import { HedgeLayout, HedgePtaxBadge } from './pages/hedge/HedgeLayout.js';
 import { ForecastDashboard } from './pages/forecast/ForecastDashboard.js';
 import { RollingForecastPage } from './pages/forecast/RollingForecastPage.js';
 import { ShoppingListPage } from './pages/forecast/ShoppingListPage.js';
@@ -171,6 +172,8 @@ function ProtectedShell() {
   // Build set of enabled module IDs for route guard
   const enabledSet = new Set(modules.filter((m) => m.enabled).map((m) => m.id));
 
+  const isHedge = location.pathname.startsWith('/hedge');
+
   return (
     <ShellLayout
       modules={sidebarModules}
@@ -181,17 +184,22 @@ function ProtectedShell() {
       onLogout={() => {
         logout().then(() => navigate('/login', { replace: true }));
       }}
+      topBarSlot={isHedge ? <HedgePtaxBadge /> : undefined}
     >
       <Routes>
         <Route index element={<DashboardPage />} />
-        {/* Hedge has real pages when enabled */}
-        {enabledSet.has('hedge') && <Route path="hedge" element={<PositionDashboard />} />}
-        {enabledSet.has('hedge') && <Route path="hedge/ndfs" element={<NDFListPage />} />}
-        {enabledSet.has('hedge') && <Route path="hedge/motor" element={<MotorMVPage />} />}
-        {enabledSet.has('hedge') && <Route path="hedge/simulacao" element={<MarginSimulationPage />} />}
-        {enabledSet.has('hedge') && <Route path="hedge/estoque" element={<InventoryPage />} />}
-        {enabledSet.has('hedge') && <Route path="hedge/alertas" element={<AlertsPage />} />}
-        {enabledSet.has('hedge') && <Route path="hedge/config" element={<ConfigPage />} />}
+        {/* Hedge — shared layout wraps all sub-pages with PTAX badge */}
+        {enabledSet.has('hedge') && (
+          <Route path="hedge" element={<HedgeLayout />}>
+            <Route index element={<PositionDashboard />} />
+            <Route path="ndfs" element={<NDFListPage />} />
+            <Route path="motor" element={<MotorMVPage />} />
+            <Route path="simulacao" element={<MarginSimulationPage />} />
+            <Route path="estoque" element={<InventoryPage />} />
+            <Route path="alertas" element={<AlertsPage />} />
+            <Route path="config" element={<ConfigPage />} />
+          </Route>
+        )}
         {!enabledSet.has('hedge') && <Route path="hedge" element={<ModuleRoute moduleId="hedge" moduleName="Hedge Engine" enabled={false} />} />}
 
         {/* Forecast Planner */}
