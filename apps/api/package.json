@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@atlas/auth": "workspace:*",
+    "@atlas/breakingpoint": "workspace:*",
     "@atlas/core": "workspace:*",
     "@atlas/db": "workspace:*",
     "@atlas/forecast": "workspace:*",
