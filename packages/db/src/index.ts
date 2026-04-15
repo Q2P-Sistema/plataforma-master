@@ -50,3 +50,16 @@ export {
   type ConfigForecast,
   type SazonalidadeLog,
 } from './schemas/forecast.js';
+
+export {
+  breakingpointSchema,
+  bpParams,
+  bpBancoLimites,
+  bpContasConfig,
+  type BpParams,
+  type NewBpParams,
+  type BpBancoLimite,
+  type NewBpBancoLimite,
+  type BpContaConfig,
+  type NewBpContaConfig,
+} from './schemas/breakingpoint.js';

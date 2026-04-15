@@ -38,6 +38,9 @@ importers:
       '@atlas/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@atlas/breakingpoint':
+        specifier: workspace:*
+        version: link:../../modules/breakingpoint
       '@atlas/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -148,7 +151,33 @@ importers:
 
   integrations/crm: {}
 
-  modules/breakingpoint: {}
+  modules/breakingpoint:
+    dependencies:
+      '@atlas/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
+      '@atlas/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@atlas/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      drizzle-orm:
+        specifier: ^0.38.0
+        version: 0.38.4(@types/pg@8.20.0)(@types/react@18.3.28)(pg@8.20.0)(react@18.3.1)
+      express:
+        specifier: ^4.21.0
+        version: 4.22.1
+      zod:
+        specifier: ^3.24.0
+        version: 3.25.76
+    devDependencies:
+      '@types/express':
+        specifier: ^5.0.0
+        version: 5.0.6
+      vitest:
+        specifier: ^2.1.0
+        version: 2.1.9(@types/node@20.19.39)
 
   modules/clevel: {}
 

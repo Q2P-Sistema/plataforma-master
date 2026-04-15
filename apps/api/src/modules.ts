@@ -80,4 +80,13 @@ export function registerModuleRoutes(app: Express): void {
       logger.error({ err }, 'Failed to load Forecast Planner module');
     });
   }
+
+  if (config.MODULE_BREAKINGPOINT_ENABLED) {
+    import('@atlas/breakingpoint').then(({ bpRouter }) => {
+      app.use(bpRouter);
+      logger.info('Breaking Point routes registered');
+    }).catch((err) => {
+      logger.error({ err }, 'Failed to load Breaking Point module');
+    });
+  }
 }

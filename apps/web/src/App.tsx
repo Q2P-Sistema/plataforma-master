@@ -37,6 +37,12 @@ import { ShoppingListPage } from './pages/forecast/ShoppingListPage.js';
 import { ForecastConfigPage } from './pages/forecast/ForecastConfigPage.js';
 import { DemandAnalysisPage } from './pages/forecast/DemandAnalysisPage.js';
 import { BusinessInsightsPage } from './pages/forecast/BusinessInsightsPage.js';
+import { BPLayout } from './pages/breakingpoint/BPLayout.js';
+import { BPDashboardPage } from './pages/breakingpoint/BPDashboardPage.js';
+import { BPConfigPage } from './pages/breakingpoint/BPConfigPage.js';
+import { BPTabelaPage } from './pages/breakingpoint/BPTabelaPage.js';
+import { BPEstruturaBancosPage } from './pages/breakingpoint/BPEstruturaBancosPage.js';
+import { BPLimitesPage } from './pages/breakingpoint/BPLimitesPage.js';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage.js';
 import { ResetPasswordPage } from './pages/ResetPasswordPage.js';
 import { useAuth } from './hooks/useAuth.js';
@@ -47,6 +53,9 @@ import {
   ShoppingCart,
   BarChart3,
   Lightbulb,
+  Building2,
+  Landmark,
+  Table,
 } from 'lucide-react';
 
 const FORECAST_SUB_ITEMS: SidebarSubItem[] = [
@@ -56,6 +65,14 @@ const FORECAST_SUB_ITEMS: SidebarSubItem[] = [
   { id: 'forecast-insights', name: 'Insights', path: '/forecast/insights', icon: Lightbulb },
   { id: 'forecast-shopping', name: 'Shopping List', path: '/forecast/shopping', icon: ShoppingCart },
   { id: 'forecast-config', name: 'Config', path: '/forecast/config', icon: Settings },
+];
+
+const BP_SUB_ITEMS: SidebarSubItem[] = [
+  { id: 'bp-dashboard', name: 'Dashboard', path: '/breakingpoint', icon: LayoutDashboard },
+  { id: 'bp-tabela', name: 'Tabela', path: '/breakingpoint/tabela', icon: Table },
+  { id: 'bp-estrutura', name: 'Estrutura', path: '/breakingpoint/estrutura', icon: Building2 },
+  { id: 'bp-limites', name: 'Limites', path: '/breakingpoint/limites', icon: Landmark },
+  { id: 'bp-config', name: 'Configurar', path: '/breakingpoint/config', icon: Settings },
 ];
 
 const HEDGE_SUB_ITEMS: SidebarSubItem[] = [
@@ -141,7 +158,14 @@ function ProtectedShell() {
     enabled: m.enabled,
     path: m.path,
     icon: m.icon,
-    subItems: m.id === 'hedge' ? HEDGE_SUB_ITEMS : m.id === 'forecast' ? FORECAST_SUB_ITEMS : undefined,
+    subItems:
+      m.id === 'hedge'
+        ? HEDGE_SUB_ITEMS
+        : m.id === 'forecast'
+          ? FORECAST_SUB_ITEMS
+          : m.id === 'breakingpoint'
+            ? BP_SUB_ITEMS
+            : undefined,
   }));
 
   // Build set of enabled module IDs for route guard
@@ -179,7 +203,19 @@ function ProtectedShell() {
         {enabledSet.has('forecast') && <Route path="forecast/config" element={<ForecastConfigPage />} />}
         {!enabledSet.has('forecast') && <Route path="forecast" element={<ModuleRoute moduleId="forecast" moduleName="Forecast Planner" enabled={false} />} />}
 
-        {ALL_MODULE_IDS.filter((id) => id !== 'hedge' && id !== 'forecast').map((id) => (
+        {/* Breaking Point */}
+        {enabledSet.has('breakingpoint') && (
+          <Route path="breakingpoint" element={<BPLayout />}>
+            <Route index element={<BPDashboardPage />} />
+            <Route path="tabela" element={<BPTabelaPage />} />
+            <Route path="estrutura" element={<BPEstruturaBancosPage />} />
+            <Route path="limites" element={<BPLimitesPage />} />
+            <Route path="config" element={<BPConfigPage />} />
+          </Route>
+        )}
+        {!enabledSet.has('breakingpoint') && <Route path="breakingpoint" element={<ModuleRoute moduleId="breakingpoint" moduleName="Breaking Point" enabled={false} />} />}
+
+        {ALL_MODULE_IDS.filter((id) => id !== 'hedge' && id !== 'forecast' && id !== 'breakingpoint').map((id) => (
           <Route
             key={id}
             path={id}

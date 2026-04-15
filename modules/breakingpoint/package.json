@@ -3,5 +3,23 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Proje\u00e7\u00e3o de liquidez BRL 26 semanas, FINIMP, antecipa\u00e7\u00e3o"
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run"
+  },
+  "description": "Projeção de liquidez BRL 26 semanas — FINIMP, antecipação de recebíveis",
+  "dependencies": {
+    "drizzle-orm": "^0.38.0",
+    "zod": "^3.24.0",
+    "express": "^4.21.0",
+    "@atlas/core": "workspace:*",
+    "@atlas/db": "workspace:*",
+    "@atlas/auth": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "vitest": "^2.1.0"
+  }
 }
