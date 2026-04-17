@@ -100,25 +100,25 @@ Monorepo pnpm + Turborepo:
 
 > Escrever os testes ANTES e garantir que FALHAM antes da implementacao.
 
-- [ ] T027 [P] [US1] Contract test `POST /recebimento` em `modules/stockbridge/src/__tests__/contracts/recebimento.contract.test.ts` (cenarios sucesso, divergencia, idempotencia, produto sem correlato)
-- [ ] T028 [P] [US1] Unit test `motor.service.ts#converterParaToneladas()` em `modules/stockbridge/src/__tests__/motor.test.ts` (4 unidades: t, kg, saco 25kg, bigbag 1t)
-- [ ] T029 [P] [US1] Unit test `correlacao.service.ts#getCorrelacao()` em `modules/stockbridge/src/__tests__/correlacao.test.ts` (match de descricao positivo, sem match, case sensitivity)
-- [ ] T030 [P] [US1] Integration test fluxo completo recebimento em `modules/stockbridge/src/__tests__/recebimento.test.ts` com OMIE mock: sem divergencia → lote provisorio; com divergencia → lote aguardando_aprovacao; NF duplicada → 409
+- [X] T027 [P] [US1] Contract test `POST /recebimento` em `modules/stockbridge/src/__tests__/contracts/recebimento.contract.test.ts` (cenarios sucesso, divergencia, idempotencia, produto sem correlato)
+- [X] T028 [P] [US1] Unit test `motor.service.ts#converterParaToneladas()` em `modules/stockbridge/src/__tests__/motor.test.ts` (4 unidades: t, kg, saco 25kg, bigbag 1t)
+- [X] T029 [P] [US1] Unit test `correlacao.service.ts#getCorrelacao()` em `modules/stockbridge/src/__tests__/correlacao.test.ts` (match de descricao positivo, sem match, case sensitivity)
+- [X] T030 [P] [US1] Integration test fluxo completo recebimento em `modules/stockbridge/src/__tests__/recebimento.test.ts` com OMIE mock: sem divergencia → lote provisorio; com divergencia → lote aguardando_aprovacao; NF duplicada → 409
 
 ### Implementation for User Story 1
 
-- [ ] T031 [P] [US1] Criar `modules/stockbridge/src/services/correlacao.service.ts#getCorrelacao(produtoCodigoAcxe, localidadeDestinoCodigo)` lendo `shared.vw_sb_correlacao_produto`
-- [ ] T032 [P] [US1] Criar `modules/stockbridge/src/services/motor.service.ts#converterParaToneladas(qtd, unidade)` puro (sem I/O), testado por T028
-- [ ] T033 [US1] Criar `modules/stockbridge/src/services/recebimento.service.ts#getFilaOmie(perfilArmazem)` consultando fila de NFs pendentes (idempotencia checa `stockbridge.movimentacao.nota_fiscal` + `ativo=true`)
-- [ ] T034 [US1] Implementar `recebimento.service.ts#processarRecebimento(input)` transacional: (1) valida idempotencia, (2) resolve correlacao produto, (3) chama OMIE ACXE `IncluirAjusteEstoque`, (4) chama OMIE Q2P `IncluirAjusteEstoque`, (5) grava `stockbridge.lote`, (6) grava `stockbridge.movimentacao` com ambos os lados. Rollback BD se Q2P falhar apos ACXE sucesso + alerta
-- [ ] T035 [US1] Implementar tratamento de divergencia em `recebimento.service.ts#processarRecebimentoComDivergencia(input)`: cria lote `aguardando_aprovacao`, cria `stockbridge.aprovacao` nivel `gestor`, grava divergencia tipo `faltando`/`varredura`
-- [ ] T036 [US1] Criar `modules/stockbridge/src/routes/fila.routes.ts` com `GET /fila` (requireOperador + armazemVinculado)
-- [ ] T037 [US1] Criar `modules/stockbridge/src/routes/recebimento.routes.ts` com `POST /recebimento` (requireOperador), validacao Zod, chamada ao service
-- [ ] T038 [US1] Montar sub-routers em `modules/stockbridge/src/routes/stockbridge.routes.ts` e atualizar `modules/stockbridge/src/index.ts`
-- [ ] T039 [US1] Adicionar notificacao email via `@atlas/integrations/email` quando produto sem correlato (replicar mensagem do legado em `research.md` secao 10)
-- [ ] T040 [P] [US1] Criar `apps/web/src/pages/stockbridge/operador/FilaOmiePage.tsx` — lista de NFs com filtros de tipo, busca, cards coloridos por tipo de NF
-- [ ] T041 [P] [US1] Criar `apps/web/src/pages/stockbridge/operador/ConferenciaModal.tsx` — modal de confirmacao com input qtd + unidade, deteccao automatica de divergencia, campo motivo obrigatorio quando diverge
-- [ ] T042 [US1] Criar `apps/web/src/pages/stockbridge/operador/MeuEstoquePage.tsx` — saldo fisico por item do armazem vinculado, consultando view `shared.vw_sb_saldo_por_produto`
+- [X] T031 [P] [US1] Criar `modules/stockbridge/src/services/correlacao.service.ts#getCorrelacao(produtoCodigoAcxe, localidadeDestinoCodigo)` lendo `shared.vw_sb_correlacao_produto`
+- [X] T032 [P] [US1] Criar `modules/stockbridge/src/services/motor.service.ts#converterParaToneladas(qtd, unidade)` puro (sem I/O), testado por T028
+- [X] T033 [US1] Criar `modules/stockbridge/src/services/recebimento.service.ts#getFilaOmie(perfilArmazem)` consultando fila de NFs pendentes (idempotencia checa `stockbridge.movimentacao.nota_fiscal` + `ativo=true`)
+- [X] T034 [US1] Implementar `recebimento.service.ts#processarRecebimento(input)` transacional: (1) valida idempotencia, (2) resolve correlacao produto, (3) chama OMIE ACXE `IncluirAjusteEstoque`, (4) chama OMIE Q2P `IncluirAjusteEstoque`, (5) grava `stockbridge.lote`, (6) grava `stockbridge.movimentacao` com ambos os lados. Rollback BD se Q2P falhar apos ACXE sucesso + alerta
+- [X] T035 [US1] Implementar tratamento de divergencia em `recebimento.service.ts#processarRecebimentoComDivergencia(input)`: cria lote `aguardando_aprovacao`, cria `stockbridge.aprovacao` nivel `gestor`, grava divergencia tipo `faltando`/`varredura`
+- [X] T036 [US1] Criar `modules/stockbridge/src/routes/fila.routes.ts` com `GET /fila` (requireOperador + armazemVinculado)
+- [X] T037 [US1] Criar `modules/stockbridge/src/routes/recebimento.routes.ts` com `POST /recebimento` (requireOperador), validacao Zod, chamada ao service
+- [X] T038 [US1] Montar sub-routers em `modules/stockbridge/src/routes/stockbridge.routes.ts` e atualizar `modules/stockbridge/src/index.ts`
+- [X] T039 [US1] Adicionar notificacao email via `@atlas/integrations/email` quando produto sem correlato (replicar mensagem do legado em `research.md` secao 10)
+- [X] T040 [P] [US1] Criar `apps/web/src/pages/stockbridge/operador/FilaOmiePage.tsx` — lista de NFs com filtros de tipo, busca, cards coloridos por tipo de NF
+- [X] T041 [P] [US1] Criar `apps/web/src/pages/stockbridge/operador/ConferenciaModal.tsx` — modal de confirmacao com input qtd + unidade, deteccao automatica de divergencia, campo motivo obrigatorio quando diverge
+- [X] T042 [US1] Criar `apps/web/src/pages/stockbridge/operador/MeuEstoquePage.tsx` — saldo fisico por item do armazem vinculado, consultando view `shared.vw_sb_saldo_por_produto`
 
 **Checkpoint**: Operador pode receber NF end-to-end. MVP funcional mas sem cockpit gestor ainda.
 

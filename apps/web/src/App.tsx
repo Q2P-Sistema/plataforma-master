@@ -46,6 +46,8 @@ import { BPEstruturaBancosPage } from './pages/breakingpoint/BPEstruturaBancosPa
 import { BPLimitesPage } from './pages/breakingpoint/BPLimitesPage.js';
 import { SBLayout } from './pages/stockbridge/SBLayout.js';
 import { SBPlaceholderPage } from './pages/stockbridge/SBPlaceholderPage.js';
+import { FilaOmiePage } from './pages/stockbridge/operador/FilaOmiePage.js';
+import { MeuEstoquePage } from './pages/stockbridge/operador/MeuEstoquePage.js';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage.js';
 import { ResetPasswordPage } from './pages/ResetPasswordPage.js';
 import { useAuth } from './hooks/useAuth.js';
@@ -68,6 +70,11 @@ const FORECAST_SUB_ITEMS: SidebarSubItem[] = [
   { id: 'forecast-insights', name: 'Insights', path: '/forecast/insights', icon: Lightbulb },
   { id: 'forecast-shopping', name: 'Shopping List', path: '/forecast/shopping', icon: ShoppingCart },
   { id: 'forecast-config', name: 'Config', path: '/forecast/config', icon: Settings },
+];
+
+const STOCKBRIDGE_SUB_ITEMS: SidebarSubItem[] = [
+  { id: 'sb-fila', name: 'Fila OMIE', path: '/stockbridge/fila', icon: FileText },
+  { id: 'sb-estoque', name: 'Meu Estoque', path: '/stockbridge/estoque', icon: Package },
 ];
 
 const BP_SUB_ITEMS: SidebarSubItem[] = [
@@ -168,7 +175,9 @@ function ProtectedShell() {
           ? FORECAST_SUB_ITEMS
           : m.id === 'breakingpoint'
             ? BP_SUB_ITEMS
-            : undefined,
+            : m.id === 'stockbridge'
+              ? STOCKBRIDGE_SUB_ITEMS
+              : undefined,
   }));
 
   // Build set of enabled module IDs for route guard
@@ -225,10 +234,13 @@ function ProtectedShell() {
         )}
         {!enabledSet.has('breakingpoint') && <Route path="breakingpoint" element={<ModuleRoute moduleId="breakingpoint" moduleName="Breaking Point" enabled={false} />} />}
 
-        {/* StockBridge — Phase 2 foundational placeholder, substituido pelas US em fases futuras */}
+        {/* StockBridge — Phase 3 (US1 Recebimento) ativa; US2-US8 em fases futuras */}
         {enabledSet.has('stockbridge') && (
           <Route path="stockbridge" element={<SBLayout />}>
-            <Route index element={<SBPlaceholderPage />} />
+            <Route index element={<FilaOmiePage />} />
+            <Route path="fila" element={<FilaOmiePage />} />
+            <Route path="estoque" element={<MeuEstoquePage />} />
+            <Route path="placeholder" element={<SBPlaceholderPage />} />
           </Route>
         )}
         {!enabledSet.has('stockbridge') && <Route path="stockbridge" element={<ModuleRoute moduleId="stockbridge" moduleName="StockBridge" enabled={false} />} />}
