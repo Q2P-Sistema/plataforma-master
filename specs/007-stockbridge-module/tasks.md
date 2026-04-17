@@ -184,18 +184,18 @@ Monorepo pnpm + Turborepo:
 
 ### Tests for User Story 4
 
-- [ ] T063 [P] [US4] Unit test transicoes de estagio valido/invalido em `modules/stockbridge/src/__tests__/transito.test.ts`
-- [ ] T064 [P] [US4] Integration test visibilidade por perfil — operador NAO deve ver lotes `transito_intl`/`porto_dta`
-- [ ] T065 [P] [US4] Contract test `PATCH /transito/:lote_id/avancar` incluindo validacao de DI/DTA obrigatorios em `porto_dta`
+- [X] T063 [P] [US4] Unit test transicoes de estagio valido/invalido em `modules/stockbridge/src/__tests__/transito.test.ts`
+- [X] T064 [P] [US4] Integration test visibilidade por perfil — operador NAO deve ver lotes `transito_intl`/`porto_dta`
+- [X] T065 [P] [US4] Contract test `PATCH /transito/:lote_id/avancar` incluindo validacao de DI/DTA obrigatorios em `porto_dta`
 
 ### Implementation for User Story 4
 
-- [ ] T066 [P] [US4] Criar `modules/stockbridge/src/services/transito.service.ts#listarPorEstagio(perfil)` filtrando por visibilidade
-- [ ] T067 [US4] Implementar `transito.service.ts#avancarEstagio(loteId, novoEstagio, dados)` com validacoes: `porto_dta` exige DI+DTA; `transito_interno` exige NF transporte; transicao invalida = erro
-- [ ] T068 [US4] Criar `modules/stockbridge/src/routes/transito.routes.ts` com `GET /transito`, `PATCH /transito/:lote_id/avancar`
-- [ ] T069 [US4] Adicionar flag visual `atrasado` em lote quando `dt_prev_chegada < now()` e ainda em transito (via view ou calculo TS)
-- [ ] T070 [P] [US4] Criar `apps/web/src/pages/stockbridge/gestor/TransitoPage.tsx` — Kanban 4 colunas, cards por estagio, CTA de avanco
-- [ ] T071 [P] [US4] Criar `apps/web/src/pages/stockbridge/gestor/AvancarEstagioModal.tsx` — formulario dinamico por estagio destino
+- [X] T066 [P] [US4] Criar `modules/stockbridge/src/services/transito.service.ts#listarPorEstagio(perfil)` filtrando por visibilidade
+- [X] T067 [US4] Implementar `transito.service.ts#avancarEstagio(loteId, novoEstagio, dados)` com validacoes: `porto_dta` exige DI+DTA; `transito_interno` exige NF transporte; transicao invalida = erro
+- [X] T068 [US4] Criar `modules/stockbridge/src/routes/transito.routes.ts` com `GET /transito`, `PATCH /transito/:lote_id/avancar`
+- [X] T069 [US4] Adicionar flag visual `atrasado` em lote quando `dt_prev_chegada < now()` e ainda em transito (via view ou calculo TS)
+- [X] T070 [P] [US4] Criar `apps/web/src/pages/stockbridge/gestor/TransitoPage.tsx` — Kanban 4 colunas, cards por estagio, CTA de avanco
+- [X] T071 [P] [US4] Criar `apps/web/src/pages/stockbridge/gestor/AvancarEstagioModal.tsx` — formulario dinamico por estagio destino
 
 **Checkpoint**: Visibilidade do pipeline de importacao. Operador ve so transito interno/reservado conforme FR-006.
 

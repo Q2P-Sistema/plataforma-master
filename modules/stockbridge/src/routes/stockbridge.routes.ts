@@ -5,6 +5,7 @@ import filaRouter from './fila.routes.js';
 import recebimentoRouter from './recebimento.routes.js';
 import cockpitRouter from './cockpit.routes.js';
 import aprovacaoRouter from './aprovacao.routes.js';
+import transitoRouter from './transito.routes.js';
 
 const logger = createLogger('stockbridge:routes');
 const router: Router = Router();
@@ -24,7 +25,9 @@ router.use(recebimentoRouter);
 router.use(cockpitRouter);
 // US3 — Aprovacoes hierarquicas
 router.use(aprovacaoRouter);
+// US4 — Pipeline de transito maritimo
+router.use(transitoRouter);
 
-logger.info('StockBridge router inicializado (US1 + US2 + US3 montadas)');
+logger.info('StockBridge router inicializado (US1 + US2 + US3 + US4 montadas)');
 
 export default router;
