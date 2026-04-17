@@ -312,10 +312,10 @@ Monorepo pnpm + Turborepo:
 
 > Pequena fase suporte — rota de movimentacoes e transversal.
 
-- [ ] T109 [P] Criar `modules/stockbridge/src/services/movimentacao.service.ts#listar(filtros)` com JOIN `shared.users` e paginacao
-- [ ] T110 [P] Criar `modules/stockbridge/src/services/movimentacao.service.ts#softDelete(id, usuarioId, motivo)` — marca `ativo=false`, grava audit
-- [ ] T111 Criar `modules/stockbridge/src/routes/movimentacao.routes.ts` com `GET /movimentacoes`, `DELETE /movimentacoes/:id`
-- [ ] T112 [P] Criar `apps/web/src/pages/stockbridge/gestor/MovimentacoesPage.tsx` — log paginado com filtros
+- [X] T109 [P] Criar `modules/stockbridge/src/services/movimentacao.service.ts#listar(filtros)` com JOIN `shared.users` e paginacao
+- [X] T110 [P] Criar `modules/stockbridge/src/services/movimentacao.service.ts#softDelete(id, usuarioId, motivo)` — marca `ativo=false`, grava audit
+- [X] T111 Criar `modules/stockbridge/src/routes/movimentacao.routes.ts` com `GET /movimentacoes`, `DELETE /movimentacoes/:id`
+- [X] T112 [P] Criar `apps/web/src/pages/stockbridge/gestor/MovimentacoesPage.tsx` — log paginado com filtros
 
 ---
 

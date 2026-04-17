@@ -12,6 +12,7 @@ import metricasRouter from './metricas.routes.js';
 import fornecedorRouter from './fornecedor.routes.js';
 import localidadeRouter from './localidade.routes.js';
 import configRouter from './config.routes.js';
+import movimentacaoRouter from './movimentacao.routes.js';
 
 const logger = createLogger('stockbridge:routes');
 const router: Router = Router();
@@ -43,7 +44,9 @@ router.use(fornecedorRouter);
 // US8 — Gestao de localidades + config de produtos
 router.use(localidadeRouter);
 router.use(configRouter);
+// Phase 11 — Movimentacoes (listagem + soft delete)
+router.use(movimentacaoRouter);
 
-logger.info('StockBridge router inicializado (US1..US8 montadas)');
+logger.info('StockBridge router inicializado (US1..US8 + Movimentacoes montadas)');
 
 export default router;

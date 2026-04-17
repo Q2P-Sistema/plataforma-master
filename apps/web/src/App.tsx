@@ -56,6 +56,7 @@ import { MetricasPage } from './pages/stockbridge/diretor/MetricasPage.js';
 import { FornecedoresPage } from './pages/stockbridge/diretor/FornecedoresPage.js';
 import { ConfigProdutosPage } from './pages/stockbridge/diretor/ConfigProdutosPage.js';
 import { LocalidadesPage } from './pages/stockbridge/gestor/LocalidadesPage.js';
+import { MovimentacoesPage } from './pages/stockbridge/gestor/MovimentacoesPage.js';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage.js';
 import { ResetPasswordPage } from './pages/ResetPasswordPage.js';
 import { useAuth } from './hooks/useAuth.js';
@@ -84,6 +85,7 @@ const STOCKBRIDGE_SUB_ITEMS: SidebarSubItem[] = [
   { id: 'sb-cockpit', name: 'Cockpit', path: '/stockbridge/cockpit', icon: LayoutDashboard },
   { id: 'sb-fila', name: 'Fila OMIE', path: '/stockbridge/fila', icon: FileText },
   { id: 'sb-aprovacoes', name: 'Aprovacoes', path: '/stockbridge/aprovacoes', icon: Bell },
+  { id: 'sb-movimentacoes', name: 'Movimentacoes', path: '/stockbridge/movimentacoes', icon: Table },
   { id: 'sb-transito', name: 'Transito', path: '/stockbridge/transito', icon: Activity },
   { id: 'sb-saida-manual', name: 'Saida Manual', path: '/stockbridge/saida-manual', icon: ShoppingCart },
   { id: 'sb-metricas', name: 'Metricas', path: '/stockbridge/metricas', icon: BarChart3 },
@@ -257,6 +259,7 @@ function ProtectedShell() {
             <Route path="fila" element={<FilaOmiePage />} />
             <Route path="cockpit" element={<CockpitPage />} />
             <Route path="aprovacoes" element={<AprovacoesPage />} />
+            <Route path="movimentacoes" element={<MovimentacoesPage />} />
             <Route path="transito" element={<TransitoPage />} />
             <Route path="saida-manual" element={<SaidaManualPage />} />
             <Route path="metricas" element={<MetricasPage />} />
