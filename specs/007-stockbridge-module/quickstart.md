@@ -114,11 +114,36 @@ curl -H "Cookie: session=..." http://localhost:3001/api/v1/stockbridge/cockpit
 
 Para testar o fluxo de saidas automaticas em dev:
 
-1. Em n8n local: importar workflow `workflows/stockbridge-saida-automatica.json`
-2. Configurar variaveis: URL do Atlas, `X-Atlas-Integration-Key`, credenciais OMIE
-3. Executar manualmente para processar NFs de saida existentes
+1. Em n8n: importar workflow de [workflows/stockbridge-saida-automatica.json](../../workflows/stockbridge-saida-automatica.json)
+2. Variaveis de ambiente esperadas pelo workflow (configurar no n8n, nao no Atlas):
+   - `ATLAS_URL` — base URL do Atlas (ex: `http://manager-01:3005` em prod, `http://localhost:3005` em dev)
+   - `ATLAS_INTEGRATION_KEY` — shared secret, tem que bater com o `.env` do Atlas
+   - `OMIE_ACXE_KEY`, `OMIE_ACXE_SECRET`, `OMIE_Q2P_KEY`, `OMIE_Q2P_SECRET`
+3. No Atlas `.env`, definir a mesma `ATLAS_INTEGRATION_KEY` (minimo 16 caracteres)
+4. Ativar o workflow — ele roda a cada 5 minutos com janela incremental por `dDtAlt`
+5. Cada NF de saida processada gera `stockbridge.movimentacao` (tipo `saida_automatica` ou `debito_cruzado` se emissor ≠ fisico)
+6. Debito cruzado dispara email ao admin e cria `stockbridge.divergencia` tipo `cruzada`
 
-Em producao, o workflow roda com cron de 5 minutos.
+Endpoint consumido: `POST /api/v1/stockbridge/saida-automatica/processar`.
+Exige header `X-Atlas-Integration-Key`. Idempotente por NF + tipo — retorna `idempotente: true` em reprocessamento.
+
+Para testar localmente sem n8n, usar `curl`:
+```bash
+curl -X POST http://localhost:3005/api/v1/stockbridge/saida-automatica/processar \
+  -H "Content-Type: application/json" \
+  -H "X-Atlas-Integration-Key: $ATLAS_INTEGRATION_KEY" \
+  -d '{
+    "nf": "TEST-001",
+    "tipo_omie": "venda",
+    "cnpj_emissor": "acxe",
+    "produto_codigo": 123,
+    "quantidade_original": 25,
+    "unidade": "t",
+    "localidade_origem_codigo": 4498926337,
+    "dt_emissao": "2026-04-20",
+    "id_movest_omie": "MOCK-1"
+  }'
+```
 
 ## 9. Validacao paralela (pre-cutover)
 

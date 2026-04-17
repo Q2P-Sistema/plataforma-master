@@ -43,6 +43,9 @@ const envSchema = z.object({
   MODULE_COMEXINSIGHT_ENABLED: boolString,
   MODULE_COMEXFLOW_ENABLED: boolString,
   MODULE_FORECAST_ENABLED: boolString,
+
+  // Chave compartilhada entre n8n e Atlas para endpoints de integracao (ex: saidas automaticas StockBridge)
+  ATLAS_INTEGRATION_KEY: z.string().min(16).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

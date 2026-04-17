@@ -6,6 +6,7 @@ import recebimentoRouter from './recebimento.routes.js';
 import cockpitRouter from './cockpit.routes.js';
 import aprovacaoRouter from './aprovacao.routes.js';
 import transitoRouter from './transito.routes.js';
+import saidaAutomaticaRouter from './saida-automatica.routes.js';
 
 const logger = createLogger('stockbridge:routes');
 const router: Router = Router();
@@ -27,7 +28,9 @@ router.use(cockpitRouter);
 router.use(aprovacaoRouter);
 // US4 — Pipeline de transito maritimo
 router.use(transitoRouter);
+// US5 — Saidas automaticas via OMIE (polling n8n)
+router.use(saidaAutomaticaRouter);
 
-logger.info('StockBridge router inicializado (US1 + US2 + US3 + US4 montadas)');
+logger.info('StockBridge router inicializado (US1 + US2 + US3 + US4 + US5 montadas)');
 
 export default router;

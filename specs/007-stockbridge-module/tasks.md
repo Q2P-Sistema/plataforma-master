@@ -209,20 +209,20 @@ Monorepo pnpm + Turborepo:
 
 ### Tests for User Story 5
 
-- [ ] T072 [P] [US5] Unit test `saida-automatica.service.ts#detectarDebitoCruzado()` em `modules/stockbridge/src/__tests__/debito-cruzado.test.ts`
-- [ ] T073 [P] [US5] Integration test end-to-end de cada subtipo (venda, remessa, transf_cnpj, devolucao_fornecedor, debito_cruzado, regularizacao_fiscal) em `modules/stockbridge/src/__tests__/saida-automatica.test.ts`
-- [ ] T074 [P] [US5] Contract test `POST /saida-automatica/processar` com `X-Atlas-Integration-Key` (403 sem header, 401 com header invalido)
+- [X] T072 [P] [US5] Unit test `saida-automatica.service.ts#detectarDebitoCruzado()` em `modules/stockbridge/src/__tests__/debito-cruzado.test.ts`
+- [X] T073 [P] [US5] Integration test end-to-end de cada subtipo (venda, remessa, transf_cnpj, devolucao_fornecedor, debito_cruzado, regularizacao_fiscal) em `modules/stockbridge/src/__tests__/saida-automatica.test.ts`
+- [X] T074 [P] [US5] Contract test `POST /saida-automatica/processar` com `X-Atlas-Integration-Key` (403 sem header, 401 com header invalido)
 
 ### Implementation for User Story 5
 
-- [ ] T075 [P] [US5] Criar middleware `modules/stockbridge/src/middleware/integration-key.ts` que valida `X-Atlas-Integration-Key` contra env `ATLAS_INTEGRATION_KEY`
-- [ ] T076 [P] [US5] Criar `modules/stockbridge/src/services/saida-automatica.service.ts#processar(payload)` com identificacao de subtipo, calculo de impacto fisico/fiscal
-- [ ] T077 [US5] Implementar `saida-automatica.service.ts#detectarDebitoCruzado()` — compara CNPJ emissor da NF com CNPJ da localidade fisica origem; se diferentes, cria `stockbridge.divergencia` tipo `cruzada`
-- [ ] T077b [US5] Implementar notificacao via `@atlas/integrations/email` para gestor+diretor quando debito cruzado detectado (FR-018 item c) — integrar com `detectarDebitoCruzado()`
-- [ ] T078 [US5] Implementar `saida-automatica.service.ts#regularizarFiscal(movimentacaoId)` — consumido quando NF de transferencia de regularizacao e processada, baixa divergencia cruzada aberta
-- [ ] T079 [US5] Criar `modules/stockbridge/src/routes/saida-automatica.routes.ts` com `POST /saida-automatica/processar` (integrationKey middleware)
-- [ ] T080 [P] [US5] Criar workflow n8n `workflows/stockbridge-saida-automatica.json` — polling 5min em `produtos/nfconsultar/` por tipos de saida, POST para endpoint Atlas
-- [ ] T081 [US5] Documentar em `quickstart.md` como importar/configurar o workflow n8n
+- [X] T075 [P] [US5] Criar middleware `modules/stockbridge/src/middleware/integration-key.ts` que valida `X-Atlas-Integration-Key` contra env `ATLAS_INTEGRATION_KEY`
+- [X] T076 [P] [US5] Criar `modules/stockbridge/src/services/saida-automatica.service.ts#processar(payload)` com identificacao de subtipo, calculo de impacto fisico/fiscal
+- [X] T077 [US5] Implementar `saida-automatica.service.ts#detectarDebitoCruzado()` — compara CNPJ emissor da NF com CNPJ da localidade fisica origem; se diferentes, cria `stockbridge.divergencia` tipo `cruzada`
+- [X] T077b [US5] Implementar notificacao via `@atlas/integrations/email` para gestor+diretor quando debito cruzado detectado (FR-018 item c) — integrar com `detectarDebitoCruzado()`
+- [X] T078 [US5] Implementar `saida-automatica.service.ts#regularizarFiscal(movimentacaoId)` — consumido quando NF de transferencia de regularizacao e processada, baixa divergencia cruzada aberta
+- [X] T079 [US5] Criar `modules/stockbridge/src/routes/saida-automatica.routes.ts` com `POST /saida-automatica/processar` (integrationKey middleware)
+- [X] T080 [P] [US5] Criar workflow n8n `workflows/stockbridge-saida-automatica.json` — polling 5min em `produtos/nfconsultar/` por tipos de saida, POST para endpoint Atlas
+- [X] T081 [US5] Documentar em `quickstart.md` como importar/configurar o workflow n8n
 
 **Checkpoint**: Saidas automaticas funcionando. Sistema completo end-to-end para producao em staging.
 
