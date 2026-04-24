@@ -9,9 +9,9 @@ interface Pendencia {
   loteCodigo: string;
   tipoAprovacao: string;
   precisaNivel: 'gestor' | 'diretor';
-  quantidadePrevistaT: number | null;
-  quantidadeRecebidaT: number | null;
-  deltaT: number | null;
+  quantidadePrevistaKg: number | null;
+  quantidadeRecebidaKg: number | null;
+  deltaKg: number | null;
   tipoDivergencia: string | null;
   observacoes: string | null;
   lancadoPor: { id: string; nome: string };
@@ -101,7 +101,7 @@ export function AprovacoesPage() {
 
       <div className="flex flex-col gap-3">
         {pendencias.map((p) => {
-          const hasDivergencia = p.deltaT != null && Math.abs(p.deltaT) > 0.01;
+          const hasDivergencia = p.deltaKg != null && Math.abs(p.deltaKg) > 1;
           return (
             <div
               key={p.id}
@@ -135,9 +135,9 @@ export function AprovacoesPage() {
 
               {hasDivergencia && (
                 <div className="grid grid-cols-3 gap-2 mb-3">
-                  <Cell label="Previsto NF" value={`${p.quantidadePrevistaT?.toFixed(3)} t`} />
-                  <Cell label="Recebido" value={`${p.quantidadeRecebidaT?.toFixed(3)} t`} accent="text-amber-700" />
-                  <Cell label="Delta" value={`${p.deltaT! > 0 ? '+' : ''}${p.deltaT?.toFixed(3)} t`} accent={p.deltaT! < 0 ? 'text-red-700' : 'text-amber-700'} />
+                  <Cell label="Previsto NF" value={`${p.quantidadePrevistaKg?.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} kg`} />
+                  <Cell label="Recebido" value={`${p.quantidadeRecebidaKg?.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} kg`} accent="text-amber-700" />
+                  <Cell label="Delta" value={`${p.deltaKg! > 0 ? '+' : ''}${p.deltaKg?.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} kg`} accent={p.deltaKg! < 0 ? 'text-red-700' : 'text-amber-700'} />
                 </div>
               )}
 

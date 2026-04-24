@@ -15,7 +15,7 @@ interface Movimentacao {
   notaFiscal: string;
   tipoMovimento: string;
   subtipo: string | null;
-  quantidadeT: number;
+  quantidadeKg: number;
   loteCodigo: string | null;
   observacoes: string | null;
   ladoAcxe: LadoCnpj;
@@ -147,7 +147,7 @@ export function MovimentacoesPage() {
                   <th className="text-left px-3 py-2">Data</th>
                   <th className="text-left px-3 py-2">NF</th>
                   <th className="text-left px-3 py-2">Tipo</th>
-                  <th className="text-right px-3 py-2">Qtd (t)</th>
+                  <th className="text-right px-3 py-2">Qtd (kg)</th>
                   <th className="text-left px-3 py-2">Lote</th>
                   <th className="text-left px-3 py-2">ACXE</th>
                   <th className="text-left px-3 py-2">Q2P</th>
@@ -164,8 +164,8 @@ export function MovimentacoesPage() {
                         {m.tipoMovimento}{m.subtipo ? ` · ${m.subtipo}` : ''}
                       </span>
                     </td>
-                    <td className={`px-3 py-2 text-right font-serif ${m.quantidadeT >= 0 ? 'text-green-700' : 'text-red-700'}`}>
-                      {m.quantidadeT > 0 ? '+' : ''}{m.quantidadeT.toFixed(3)}
+                    <td className={`px-3 py-2 text-right font-serif ${m.quantidadeKg >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                      {m.quantidadeKg > 0 ? '+' : ''}{m.quantidadeKg.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} kg
                     </td>
                     <td className="px-3 py-2 font-mono text-[11px] text-atlas-muted">{m.loteCodigo ?? '—'}</td>
                     <td className="px-3 py-2">

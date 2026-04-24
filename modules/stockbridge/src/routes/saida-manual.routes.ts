@@ -63,7 +63,7 @@ router.post('/api/v1/stockbridge/saida-manual', requireOperador, async (req: Req
 });
 
 const RetornoSchema = z.object({
-  quantidade_retornada_t: z.number().positive(),
+  quantidade_retornada_kg: z.number().positive(),
   observacoes: z.string().min(1),
 });
 
@@ -82,7 +82,7 @@ router.post('/api/v1/stockbridge/comodato/:movimentacao_id/retorno', requireOper
   try {
     const result = await registrarRetornoComodato({
       movimentacaoOrigemId: movimentacaoId,
-      quantidadeRetornadaT: parsed.data.quantidade_retornada_t,
+      quantidadeRetornadaKg: parsed.data.quantidade_retornada_kg,
       observacoes: parsed.data.observacoes,
       userId,
     });

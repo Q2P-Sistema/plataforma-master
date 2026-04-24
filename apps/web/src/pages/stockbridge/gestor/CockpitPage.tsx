@@ -10,13 +10,13 @@ interface CockpitSku {
   nome: string;
   familia: string | null;
   ncm: string | null;
-  fisicaT: number;
-  fiscalT: number;
-  transitoIntlT: number;
-  portoDtaT: number;
-  transitoInternoT: number;
-  provisorioT: number;
-  consumoMedioDiarioT: number | null;
+  fisicaKg: number;
+  fiscalKg: number;
+  transitoIntlKg: number;
+  portoDtaKg: number;
+  transitoInternoKg: number;
+  provisorioKg: number;
+  consumoMedioDiarioKg: number | null;
   leadTimeDias: number | null;
   coberturaDias: number | null;
   criticidade: Criticidade;
@@ -25,12 +25,12 @@ interface CockpitSku {
 }
 
 interface CockpitResumo {
-  totalFisicoT: number;
-  totalFiscalT: number;
-  transitoIntlT: number;
-  portoDtaT: number;
-  transitoInternoT: number;
-  provisorioT: number;
+  totalFisicoKg: number;
+  totalFiscalKg: number;
+  transitoIntlKg: number;
+  portoDtaKg: number;
+  transitoInternoKg: number;
+  provisorioKg: number;
   divergenciasCount: number;
   aprovacoesPendentes: number;
   skusCriticos: number;
@@ -49,8 +49,8 @@ const CRIT_CFG: Record<Criticidade, { label: string; bg: string; text: string; b
   excesso: { label: 'Excesso',  bg: 'bg-blue-50 dark:bg-blue-900/20',   text: 'text-blue-700 dark:text-blue-300',   bar: 'bg-blue-500' },
 };
 
-function fmtT(n: number) {
-  return n.toLocaleString('pt-BR', { maximumFractionDigits: 1 });
+function fmtKg(n: number) {
+  return n.toLocaleString('pt-BR', { maximumFractionDigits: 0 });
 }
 
 function useApiFetch() {
@@ -86,12 +86,12 @@ export function CockpitPage() {
     const r = data?.resumo;
     if (!r) return [];
     return [
-      { label: 'Fisico Disponivel',  value: `${fmtT(r.totalFisicoT)} t`, color: 'text-atlas-ink' },
-      { label: 'Posicao Fiscal',     value: `${fmtT(r.totalFiscalT)} t`, color: 'text-atlas-ink' },
-      { label: 'Transito Intl',      value: `${fmtT(r.transitoIntlT)} t`, color: 'text-violet-700' },
-      { label: 'Porto / DTA',        value: `${fmtT(r.portoDtaT)} t`, color: 'text-orange-700' },
-      { label: 'Transito Interno',   value: `${fmtT(r.transitoInternoT)} t`, color: 'text-teal-700' },
-      { label: 'Provisorio',         value: `${fmtT(r.provisorioT)} t`, color: 'text-amber-700' },
+      { label: 'Fisico Disponivel',  value: `${fmtKg(r.totalFisicoKg)} kg`, color: 'text-atlas-ink' },
+      { label: 'Posicao Fiscal',     value: `${fmtKg(r.totalFiscalKg)} kg`, color: 'text-atlas-ink' },
+      { label: 'Transito Intl',      value: `${fmtKg(r.transitoIntlKg)} kg`, color: 'text-violet-700' },
+      { label: 'Porto / DTA',        value: `${fmtKg(r.portoDtaKg)} kg`, color: 'text-orange-700' },
+      { label: 'Transito Interno',   value: `${fmtKg(r.transitoInternoKg)} kg`, color: 'text-teal-700' },
+      { label: 'Provisorio',         value: `${fmtKg(r.provisorioKg)} kg`, color: 'text-amber-700' },
       { label: 'Divergencias',       value: String(r.divergenciasCount), color: 'text-red-700', onClick: () => setShowDivs(true) },
       { label: 'Aprovacoes',         value: String(r.aprovacoesPendentes), color: 'text-amber-700' },
       { label: 'SKUs Criticos',      value: String(r.skusCriticos), color: 'text-red-700' },
@@ -182,10 +182,10 @@ export function CockpitPage() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 mb-3">
-                  <Cell label="Fisico" value={`${fmtT(sku.fisicaT)} t`} />
-                  <Cell label="Fiscal" value={`${fmtT(sku.fiscalT)} t`} accent={Math.abs(sku.fisicaT - sku.fiscalT) > 0.01 ? 'text-red-700' : undefined} />
-                  <Cell label="Transito intl" value={`${fmtT(sku.transitoIntlT)} t`} accent="text-violet-700" />
-                  <Cell label="Transito int." value={`${fmtT(sku.transitoInternoT)} t`} accent="text-teal-700" />
+                  <Cell label="Fisico" value={`${fmtKg(sku.fisicaKg)} kg`} />
+                  <Cell label="Fiscal" value={`${fmtKg(sku.fiscalKg)} kg`} accent={Math.abs(sku.fisicaKg - sku.fiscalKg) > 1 ? 'text-red-700' : undefined} />
+                  <Cell label="Transito intl" value={`${fmtKg(sku.transitoIntlKg)} kg`} accent="text-violet-700" />
+                  <Cell label="Transito int." value={`${fmtKg(sku.transitoInternoKg)} kg`} accent="text-teal-700" />
                 </div>
 
                 <div className="mb-2">
@@ -216,9 +216,9 @@ export function CockpitPage() {
                       {sku.aprovacoesPendentes} apr
                     </span>
                   )}
-                  {sku.provisorioT > 0 && (
+                  {sku.provisorioKg > 0 && (
                     <span className="px-2 py-0.5 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 rounded">
-                      +{fmtT(sku.provisorioT)}t prov
+                      +{fmtKg(sku.provisorioKg)}kg prov
                     </span>
                   )}
                 </div>

@@ -11,9 +11,9 @@ interface LoteTransito {
   produtoCodigoAcxe: number;
   fornecedorNome: string;
   paisOrigem: string | null;
-  quantidadeFisica: number;
-  quantidadeFiscal: number;
-  custoUsd: number | null;
+  quantidadeFisicaKg: number;
+  quantidadeFiscalKg: number;
+  custoUsdTon: number | null;
   cnpj: string;
   estagioTransito: EstagioTransito;
   localidadeCodigo: string | null;
@@ -102,8 +102,8 @@ export function TransitoPage() {
                       <div className="font-medium text-atlas-ink truncate">{l.fornecedorNome}</div>
                       <div className="text-[10px] text-atlas-muted">
                         {l.paisOrigem && `${l.paisOrigem} · `}
-                        {l.quantidadeFiscal.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} t
-                        {l.custoUsd != null && ` · USD ${l.custoUsd.toFixed(0)}/t`}
+                        {l.quantidadeFiscalKg.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} kg
+                        {l.custoUsdTon != null && ` · USD ${l.custoUsdTon.toFixed(0)}/t`}
                       </div>
                       {col.key === 'porto_dta' && (
                         <div className="text-[10px] text-orange-700 dark:text-orange-300">

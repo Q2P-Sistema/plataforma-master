@@ -26,7 +26,7 @@ export interface MovimentacaoListItem {
   notaFiscal: string;
   tipoMovimento: string;
   subtipo: string | null;
-  quantidadeT: number;
+  quantidadeKg: number;
   loteCodigo: string | null;
   observacoes: string | null;
   ladoAcxe: { status: string | null; dt: string | null; idMovest: string | null; usuario: string | null };
@@ -74,7 +74,7 @@ export async function listar(filtros: ListarFiltros): Promise<ListarResultado> {
       notaFiscal: movimentacao.notaFiscal,
       tipoMovimento: movimentacao.tipoMovimento,
       subtipo: movimentacao.subtipo,
-      quantidadeT: movimentacao.quantidadeT,
+      quantidadeKg: movimentacao.quantidadeKg,
       observacoes: movimentacao.observacoes,
       createdAt: movimentacao.createdAt,
       mvAcxe: movimentacao.mvAcxe,
@@ -117,7 +117,7 @@ export async function listar(filtros: ListarFiltros): Promise<ListarResultado> {
     notaFiscal: r.notaFiscal,
     tipoMovimento: r.tipoMovimento,
     subtipo: r.subtipo ?? null,
-    quantidadeT: Number(r.quantidadeT),
+    quantidadeKg: Number(r.quantidadeKg),
     loteCodigo: r.loteCodigo ?? null,
     observacoes: r.observacoes ?? null,
     ladoAcxe: {

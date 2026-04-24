@@ -21,13 +21,13 @@ export interface CockpitSku {
   nome: string;
   familia: string | null;
   ncm: string | null;
-  fisicaT: number;
-  fiscalT: number;
-  transitoIntlT: number;
-  portoDtaT: number;
-  transitoInternoT: number;
-  provisorioT: number;
-  consumoMedioDiarioT: number | null;
+  fisicaKg: number;
+  fiscalKg: number;
+  transitoIntlKg: number;
+  portoDtaKg: number;
+  transitoInternoKg: number;
+  provisorioKg: number;
+  consumoMedioDiarioKg: number | null;
   leadTimeDias: number | null;
   coberturaDias: number | null;
   criticidade: Criticidade;
@@ -36,12 +36,12 @@ export interface CockpitSku {
 }
 
 export interface CockpitResumo {
-  totalFisicoT: number;
-  totalFiscalT: number;
-  transitoIntlT: number;
-  portoDtaT: number;
-  transitoInternoT: number;
-  provisorioT: number;
+  totalFisicoKg: number;
+  totalFiscalKg: number;
+  transitoIntlKg: number;
+  portoDtaKg: number;
+  transitoInternoKg: number;
+  provisorioKg: number;
   divergenciasCount: number;
   aprovacoesPendentes: number;
   skusCriticos: number;
@@ -80,12 +80,12 @@ export async function getCockpit(filtros: CockpitFiltros = {}): Promise<CockpitD
     WITH saldo AS (
       SELECT
         v.produto_codigo_acxe,
-        SUM(v.fisica_disponivel_t)  AS fisica_t,
-        SUM(v.fiscal_t)             AS fiscal_t,
-        SUM(v.provisorio_t)         AS provisorio_t,
-        SUM(v.transito_intl_t)      AS transito_intl_t,
-        SUM(v.porto_dta_t)          AS porto_dta_t,
-        SUM(v.transito_interno_t)   AS transito_interno_t
+        SUM(v.fisica_disponivel_kg) AS fisica_kg,
+        SUM(v.fiscal_kg)            AS fiscal_kg,
+        SUM(v.provisorio_kg)        AS provisorio_kg,
+        SUM(v.transito_intl_kg)     AS transito_intl_kg,
+        SUM(v.porto_dta_kg)         AS porto_dta_kg,
+        SUM(v.transito_interno_kg)  AS transito_interno_kg
       FROM shared.vw_sb_saldo_por_produto v
       WHERE ($1::text IS NULL OR v.cnpj ILIKE '%' || $1 || '%')
       GROUP BY v.produto_codigo_acxe
@@ -109,20 +109,20 @@ export async function getCockpit(filtros: CockpitFiltros = {}): Promise<CockpitD
       COALESCE(p.descricao, 'Produto ' || s.produto_codigo_acxe::text) AS nome,
       p.descricao_familia AS familia,
       p.ncm,
-      COALESCE(s.fisica_t, 0)          AS fisica_t,
-      COALESCE(s.fiscal_t, 0)          AS fiscal_t,
-      COALESCE(s.transito_intl_t, 0)   AS transito_intl_t,
-      COALESCE(s.porto_dta_t, 0)       AS porto_dta_t,
-      COALESCE(s.transito_interno_t,0) AS transito_interno_t,
-      COALESCE(s.provisorio_t, 0)      AS provisorio_t,
-      c.consumo_medio_diario_t,
+      COALESCE(s.fisica_kg, 0)          AS fisica_kg,
+      COALESCE(s.fiscal_kg, 0)          AS fiscal_kg,
+      COALESCE(s.transito_intl_kg, 0)   AS transito_intl_kg,
+      COALESCE(s.porto_dta_kg, 0)       AS porto_dta_kg,
+      COALESCE(s.transito_interno_kg,0) AS transito_interno_kg,
+      COALESCE(s.provisorio_kg, 0)      AS provisorio_kg,
+      c.consumo_medio_diario_kg,
       c.lead_time_dias,
       c.familia_categoria,
       COALESCE(c.incluir_em_metricas, true) AS incluir,
       COALESCE(d.c, 0) AS divs,
       COALESCE(a.c, 0) AS aprs
     FROM saldo s
-    LEFT JOIN public.tb_produtos_ACXE p ON p.codigo_produto = s.produto_codigo_acxe
+    LEFT JOIN public."tbl_produtos_ACXE" p ON p.codigo_produto = s.produto_codigo_acxe
     LEFT JOIN stockbridge.config_produto c ON c.produto_codigo_acxe = s.produto_codigo_acxe
     LEFT JOIN divs d ON d.produto_codigo_acxe = s.produto_codigo_acxe
     LEFT JOIN apr  a ON a.produto_codigo_acxe = s.produto_codigo_acxe
@@ -145,24 +145,24 @@ export async function getCockpit(filtros: CockpitFiltros = {}): Promise<CockpitD
   }
 
   const skus: CockpitSku[] = rows.map((r) => {
-    const fisicaT = Number(r.fisica_t);
-    const consumo = r.consumo_medio_diario_t != null ? Number(r.consumo_medio_diario_t) : null;
+    const fisicaKg = Number(r.fisica_kg);
+    const consumoKg = r.consumo_medio_diario_kg != null ? Number(r.consumo_medio_diario_kg) : null;
     const leadTime = r.lead_time_dias != null ? Number(r.lead_time_dias) : null;
-    const cobertura = calcularCobertura(fisicaT, consumo);
-    const criticidade = classificarCriticidade(cobertura, leadTime, fisicaT, consumo);
+    const cobertura = calcularCobertura(fisicaKg, consumoKg);
+    const criticidade = classificarCriticidade(cobertura, leadTime, fisicaKg, consumoKg);
 
     return {
       codigoAcxe: Number(r.produto_codigo_acxe),
       nome: String(r.nome),
       familia: (r.familia as string | null) ?? (r.familia_categoria as string | null) ?? null,
       ncm: (r.ncm as string | null) ?? null,
-      fisicaT,
-      fiscalT: Number(r.fiscal_t),
-      transitoIntlT: Number(r.transito_intl_t),
-      portoDtaT: Number(r.porto_dta_t),
-      transitoInternoT: Number(r.transito_interno_t),
-      provisorioT: Number(r.provisorio_t),
-      consumoMedioDiarioT: consumo,
+      fisicaKg,
+      fiscalKg: Number(r.fiscal_kg),
+      transitoIntlKg: Number(r.transito_intl_kg),
+      portoDtaKg: Number(r.porto_dta_kg),
+      transitoInternoKg: Number(r.transito_interno_kg),
+      provisorioKg: Number(r.provisorio_kg),
+      consumoMedioDiarioKg: consumoKg,
       leadTimeDias: leadTime,
       coberturaDias: cobertura,
       criticidade,
@@ -183,24 +183,24 @@ export async function getCockpit(filtros: CockpitFiltros = {}): Promise<CockpitD
 }
 
 export function getResumoFromSkus(skus: CockpitSku[]): CockpitResumo {
-  let totalFisicoT = 0;
-  let totalFiscalT = 0;
-  let transitoIntlT = 0;
-  let portoDtaT = 0;
-  let transitoInternoT = 0;
-  let provisorioT = 0;
+  let totalFisicoKg = 0;
+  let totalFiscalKg = 0;
+  let transitoIntlKg = 0;
+  let portoDtaKg = 0;
+  let transitoInternoKg = 0;
+  let provisorioKg = 0;
   let divergenciasCount = 0;
   let aprovacoesPendentes = 0;
   let skusCriticos = 0;
   let skusAlerta = 0;
 
   for (const s of skus) {
-    totalFisicoT += s.fisicaT;
-    totalFiscalT += s.fiscalT;
-    transitoIntlT += s.transitoIntlT;
-    portoDtaT += s.portoDtaT;
-    transitoInternoT += s.transitoInternoT;
-    provisorioT += s.provisorioT;
+    totalFisicoKg += s.fisicaKg;
+    totalFiscalKg += s.fiscalKg;
+    transitoIntlKg += s.transitoIntlKg;
+    portoDtaKg += s.portoDtaKg;
+    transitoInternoKg += s.transitoInternoKg;
+    provisorioKg += s.provisorioKg;
     divergenciasCount += s.divergencias;
     aprovacoesPendentes += s.aprovacoesPendentes;
     if (s.criticidade === 'critico') skusCriticos += 1;
@@ -208,12 +208,12 @@ export function getResumoFromSkus(skus: CockpitSku[]): CockpitResumo {
   }
 
   return {
-    totalFisicoT,
-    totalFiscalT,
-    transitoIntlT,
-    portoDtaT,
-    transitoInternoT,
-    provisorioT,
+    totalFisicoKg,
+    totalFiscalKg,
+    transitoIntlKg,
+    portoDtaKg,
+    transitoInternoKg,
+    provisorioKg,
     divergenciasCount,
     aprovacoesPendentes,
     skusCriticos,

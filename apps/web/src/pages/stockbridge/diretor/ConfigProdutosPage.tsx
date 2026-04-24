@@ -6,7 +6,7 @@ interface ConfigProduto {
   produtoCodigoAcxe: number;
   nomeProduto: string;
   familiaOmie: string | null;
-  consumoMedioDiarioT: number | null;
+  consumoMedioDiarioKg: number | null;
   leadTimeDias: number | null;
   familiaCategoria: string | null;
   incluirEmMetricas: boolean;
@@ -40,7 +40,7 @@ export function ConfigProdutosPage() {
     mutationFn: async (codigo: number) => {
       const patch = edits[codigo] ?? {};
       const payload: Record<string, unknown> = {};
-      if (patch.consumoMedioDiarioT !== undefined) payload.consumo_medio_diario_t = patch.consumoMedioDiarioT;
+      if (patch.consumoMedioDiarioKg !== undefined) payload.consumo_medio_diario_kg = patch.consumoMedioDiarioKg;
       if (patch.leadTimeDias !== undefined) payload.lead_time_dias = patch.leadTimeDias;
       if (patch.familiaCategoria !== undefined) payload.familia_categoria = patch.familiaCategoria;
       if (patch.incluirEmMetricas !== undefined) payload.incluir_em_metricas = patch.incluirEmMetricas;
@@ -87,7 +87,7 @@ export function ConfigProdutosPage() {
             <tr>
               <th className="text-left px-3 py-2">SKU</th>
               <th className="text-left px-3 py-2">Familia OMIE</th>
-              <th className="text-right px-3 py-2">Consumo (t/dia)</th>
+              <th className="text-right px-3 py-2">Consumo (kg/dia)</th>
               <th className="text-right px-3 py-2">Lead Time (dias)</th>
               <th className="text-left px-3 py-2">Familia Atlas</th>
               <th className="text-center px-3 py-2">Em metricas</th>
@@ -110,12 +110,12 @@ export function ConfigProdutosPage() {
                       <input
                         type="number"
                         step="0.01"
-                        value={current.consumoMedioDiarioT ?? ''}
-                        onChange={(e) => setEdits((prev) => ({ ...prev, [p.produtoCodigoAcxe]: { ...prev[p.produtoCodigoAcxe], consumoMedioDiarioT: e.target.value ? Number(e.target.value) : null } }))}
+                        value={current.consumoMedioDiarioKg ?? ''}
+                        onChange={(e) => setEdits((prev) => ({ ...prev, [p.produtoCodigoAcxe]: { ...prev[p.produtoCodigoAcxe], consumoMedioDiarioKg: e.target.value ? Number(e.target.value) : null } }))}
                         className="w-20 px-2 py-1 border border-slate-300 dark:border-slate-600 dark:bg-slate-900 rounded text-xs text-right"
                       />
                     ) : (
-                      p.consumoMedioDiarioT != null ? p.consumoMedioDiarioT.toFixed(2) : '—'
+                      p.consumoMedioDiarioKg != null ? p.consumoMedioDiarioKg.toFixed(2) : '—'
                     )}
                   </td>
                   <td className="px-3 py-2 text-right">

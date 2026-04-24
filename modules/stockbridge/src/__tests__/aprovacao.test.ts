@@ -15,8 +15,8 @@ vi.mock('@atlas/core', () => ({
 }));
 
 vi.mock('@atlas/db', () => ({
-  aprovacao: { id: {}, status: {}, loteId: {}, precisaNivel: {}, tipoAprovacao: {}, quantidadePrevistaT: {}, quantidadeRecebidaT: {}, tipoDivergencia: {}, observacoes: {}, lancadoPor: {}, lancadoEm: {} },
-  lote: { id: {}, status: {}, quantidadeFisica: {}, updatedAt: {} },
+  aprovacao: { id: {}, status: {}, loteId: {}, precisaNivel: {}, tipoAprovacao: {}, quantidadePrevistaKg: {}, quantidadeRecebidaKg: {}, tipoDivergencia: {}, observacoes: {}, lancadoPor: {}, lancadoEm: {} },
+  lote: { id: {}, status: {}, quantidadeFisicaKg: {}, updatedAt: {} },
 }));
 
 type MockTx = {
@@ -123,11 +123,11 @@ describe('aprovacao.service#resubmeter', () => {
     vi.mocked(getDb).mockReturnValue(criarDbComAprovacao({
       id: 'apr-1', loteId: 'lote-1', status: 'rejeitada',
       precisaNivel: 'gestor', tipoAprovacao: 'recebimento_divergencia',
-      quantidadePrevistaT: '25', quantidadeRecebidaT: '20', tipoDivergencia: 'faltando',
+      quantidadePrevistaKg: '25', quantidadeRecebidaKg: '20', tipoDivergencia: 'faltando',
     }) as never);
     const res = await resubmeter({
       id: 'apr-1', usuarioId: 'u-operador',
-      quantidadeRecebidaT: 22, observacoes: 'Recontagem: encontrados 2t adicionais',
+      quantidadeRecebidaKg: 22, observacoes: 'Recontagem: encontrados 2t adicionais',
     });
     expect(res.novaAprovacaoId).toBe('nova-aprovacao-id');
     expect(res.id).toBe('apr-1');
@@ -140,12 +140,12 @@ describe('aprovacao.service#resubmeter', () => {
       precisaNivel: 'gestor', tipoAprovacao: 'recebimento_divergencia',
     }) as never);
     await expect(resubmeter({
-      id: 'apr-1', usuarioId: 'u1', quantidadeRecebidaT: 22, observacoes: 'x',
+      id: 'apr-1', usuarioId: 'u1', quantidadeRecebidaKg: 22, observacoes: 'x',
     })).rejects.toThrow(AprovacaoStatusInvalidoError);
   });
 
   it('exige motivo', async () => {
-    await expect(resubmeter({ id: 'apr-1', usuarioId: 'u1', quantidadeRecebidaT: 20, observacoes: '' })).rejects.toThrow(/motivo/i);
+    await expect(resubmeter({ id: 'apr-1', usuarioId: 'u1', quantidadeRecebidaKg: 20, observacoes: '' })).rejects.toThrow(/motivo/i);
   });
 });
 

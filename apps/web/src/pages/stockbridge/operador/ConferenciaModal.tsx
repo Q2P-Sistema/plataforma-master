@@ -5,7 +5,7 @@ import { useAuthStore } from '../../../stores/auth.store.js';
 
 type Unidade = 't' | 'kg' | 'saco' | 'bigbag';
 
-const FATOR_T: Record<Unidade, number> = { t: 1, kg: 0.001, saco: 0.025, bigbag: 1 };
+const FATOR_KG: Record<Unidade, number> = { t: 1000, kg: 1, saco: 25, bigbag: 1000 };
 
 interface FilaItem {
   nf: string;
@@ -13,7 +13,7 @@ interface FilaItem {
   produto: { codigo: number; nome: string };
   qtdOriginal: number;
   unidade: Unidade;
-  qtdT: number;
+  qtdKg: number;
   localidadeCodigo: string;
   custoUsd: number;
 }
@@ -59,14 +59,14 @@ export function ConferenciaModal({ item, onClose, onSucesso }: Props) {
     },
   });
 
-  const qtdFisicaT = useMemo(() => {
+  const qtdFisicaKg = useMemo(() => {
     const n = parseFloat(qtdInput.replace(',', '.'));
-    return Number.isFinite(n) ? n * FATOR_T[unidadeInput] : 0;
+    return Number.isFinite(n) ? n * FATOR_KG[unidadeInput] : 0;
   }, [qtdInput, unidadeInput]);
-  const delta = qtdFisicaT - item.qtdT;
-  const temDivergencia = Math.abs(delta) > 0.01;
-  const motivoObrigatorio = temDivergencia && qtdFisicaT > 0;
-  const podeConfirmar = qtdFisicaT > 0 && localidadeId && (!motivoObrigatorio || obs.trim().length > 0);
+  const deltaKg = qtdFisicaKg - item.qtdKg;
+  const temDivergencia = Math.abs(deltaKg) > 1; // tolerancia 1 kg
+  const motivoObrigatorio = temDivergencia && qtdFisicaKg > 0;
+  const podeConfirmar = qtdFisicaKg > 0 && localidadeId && (!motivoObrigatorio || obs.trim().length > 0);
 
   const recebimentoMut = useMutation({
     mutationFn: async () =>
@@ -82,9 +82,10 @@ export function ConferenciaModal({ item, onClose, onSucesso }: Props) {
         }),
       }),
     onSuccess: (res) => {
-      const data = res.data as { status: string; deltaT?: number };
+      const data = res.data as { status: string; deltaKg?: number };
       if (data.status === 'aguardando_aprovacao') {
-        setSucesso({ tipo: 'divergencia', mensagem: `Recebido com divergencia de ${Math.abs(data.deltaT ?? 0).toFixed(3)} t — encaminhado para aprovacao do Gestor.` });
+        const deltaAbs = Math.abs(data.deltaKg ?? 0);
+        setSucesso({ tipo: 'divergencia', mensagem: `Recebido com divergencia de ${deltaAbs.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} kg — encaminhado para aprovacao do Gestor.` });
       } else {
         setSucesso({ tipo: 'ok', mensagem: 'Recebimento registrado com sucesso em ACXE + Q2P.' });
       }
@@ -114,7 +115,7 @@ export function ConferenciaModal({ item, onClose, onSucesso }: Props) {
         <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded text-sm">
           <div className="flex justify-between mb-1"><span className="text-atlas-muted">NF:</span><span className="font-mono">{item.nf}</span></div>
           <div className="flex justify-between mb-1"><span className="text-atlas-muted">CNPJ:</span><span>{item.cnpj.toUpperCase()}</span></div>
-          <div className="flex justify-between"><span className="text-atlas-muted">Qtd NF:</span><span className="font-semibold">{item.qtdT.toLocaleString('pt-BR', { maximumFractionDigits: 3 })} t</span></div>
+          <div className="flex justify-between"><span className="text-atlas-muted">Qtd NF:</span><span className="font-semibold">{item.qtdKg.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} kg <span className="text-xs text-atlas-muted font-normal">({(item.qtdKg / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 3 })} t)</span></span></div>
         </div>
 
         <div>
@@ -124,7 +125,7 @@ export function ConferenciaModal({ item, onClose, onSucesso }: Props) {
               value={qtdInput}
               onChange={(e) => setQtdInput(e.target.value)}
               autoFocus
-              className={`w-full px-3 py-2 border rounded text-lg font-serif outline-none ${temDivergencia && qtdFisicaT > 0 ? 'border-amber-400 bg-amber-50 dark:bg-amber-900/20' : 'border-slate-300 dark:border-slate-600'}`}
+              className={`w-full px-3 py-2 border rounded text-lg font-serif outline-none ${temDivergencia && qtdFisicaKg > 0 ? 'border-amber-400 bg-amber-50 dark:bg-amber-900/20' : 'border-slate-300 dark:border-slate-600'}`}
             />
             <select
               value={unidadeInput}
@@ -137,25 +138,25 @@ export function ConferenciaModal({ item, onClose, onSucesso }: Props) {
               <option value="bigbag">big bag (1 t)</option>
             </select>
           </div>
-          {qtdFisicaT > 0 && unidadeInput !== 't' && (
-            <div className="text-xs text-atlas-muted mt-1">= {qtdFisicaT.toLocaleString('pt-BR', { maximumFractionDigits: 3 })} t</div>
+          {qtdFisicaKg > 0 && unidadeInput !== 'kg' && (
+            <div className="text-xs text-atlas-muted mt-1">= {qtdFisicaKg.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} kg</div>
           )}
         </div>
 
-        {qtdFisicaT > 0 && (
+        {qtdFisicaKg > 0 && (
           <div className="grid grid-cols-3 gap-2 text-center">
             <div className="p-2 bg-slate-50 dark:bg-slate-800 rounded">
               <div className="text-xs text-atlas-muted">NF</div>
-              <div className="font-serif text-sm">{item.qtdT.toFixed(3)} t</div>
+              <div className="font-serif text-sm">{item.qtdKg.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} kg</div>
             </div>
             <div className="p-2 bg-slate-50 dark:bg-slate-800 rounded">
               <div className="text-xs text-atlas-muted">Recebido</div>
-              <div className={`font-serif text-sm ${temDivergencia ? 'text-amber-700' : 'text-green-700'}`}>{qtdFisicaT.toFixed(3)} t</div>
+              <div className={`font-serif text-sm ${temDivergencia ? 'text-amber-700' : 'text-green-700'}`}>{qtdFisicaKg.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} kg</div>
             </div>
             <div className="p-2 bg-slate-50 dark:bg-slate-800 rounded">
               <div className="text-xs text-atlas-muted">Delta</div>
-              <div className={`font-serif text-sm ${Math.abs(delta) < 0.01 ? 'text-green-700' : delta > 0 ? 'text-amber-700' : 'text-red-700'}`}>
-                {delta > 0 ? '+' : ''}{delta.toFixed(3)} t
+              <div className={`font-serif text-sm ${Math.abs(deltaKg) < 1 ? 'text-green-700' : deltaKg > 0 ? 'text-amber-700' : 'text-red-700'}`}>
+                {deltaKg > 0 ? '+' : ''}{deltaKg.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} kg
               </div>
             </div>
           </div>

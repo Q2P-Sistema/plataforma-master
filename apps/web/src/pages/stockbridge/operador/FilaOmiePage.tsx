@@ -10,7 +10,7 @@ interface FilaItem {
   produto: { codigo: number; nome: string };
   qtdOriginal: number;
   unidade: 't' | 'kg' | 'saco' | 'bigbag';
-  qtdT: number;
+  qtdKg: number;
   localidadeCodigo: string;
   dtEmissao: string;
   custoUsd: number;
@@ -64,7 +64,7 @@ export function FilaOmiePage() {
   return (
     <div className="p-6 max-w-5xl">
       <div className="mb-6">
-        <h1 className="text-2xl font-serif text-atlas-ink mb-1">Fila de Conciliacao OMIE</h1>
+        <h1 className="text-2xl font-serif text-atlas-ink mb-1">Recebimento</h1>
         <p className="text-sm text-atlas-muted">
           Busque uma NF de entrada (importacao, devolucao, compra nacional) para confirmar o recebimento fisico.
         </p>
@@ -132,10 +132,8 @@ export function FilaOmiePage() {
                 </div>
               </div>
               <div className="text-right">
-                <div className="font-serif text-xl text-atlas-ink">{item.qtdT.toLocaleString('pt-BR', { maximumFractionDigits: 3 })}<span className="text-xs text-atlas-muted ml-1">t</span></div>
-                {item.unidade !== 't' && (
-                  <div className="text-xs text-atlas-muted">({item.qtdOriginal.toLocaleString('pt-BR')} {item.unidade})</div>
-                )}
+                <div className="font-serif text-xl text-atlas-ink">{item.qtdKg.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}<span className="text-xs text-atlas-muted ml-1">kg</span></div>
+                <div className="text-xs text-atlas-muted">= {(item.qtdKg / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 3 })} t</div>
               </div>
               <button
                 onClick={() => setSelecionado(item)}

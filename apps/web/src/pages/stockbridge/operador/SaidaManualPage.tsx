@@ -31,7 +31,7 @@ export function SaidaManualPage() {
   const [subtipo, setSubtipo] = useState<Subtipo>('descarte');
   const [loteId, setLoteId] = useState('');
   const [quantidade, setQuantidade] = useState('');
-  const [unidade, setUnidade] = useState<Unidade>('t');
+  const [unidade, setUnidade] = useState<Unidade>('kg');
   const [referencia, setReferencia] = useState('');
   const [observacoes, setObservacoes] = useState('');
 

@@ -15,7 +15,7 @@ vi.mock('@atlas/core', () => ({
 
 vi.mock('@atlas/db', () => ({
   lote: {
-    id: {}, ativo: {}, status: {}, codigo: {}, quantidadeFisica: {},
+    id: {}, ativo: {}, status: {}, codigo: {}, quantidadeFisicaKg: {},
     fornecedorNome: {}, updatedAt: {},
   },
   movimentacao: {},
@@ -27,7 +27,7 @@ function mockLote(overrides: Partial<Record<string, unknown>> = {}) {
   return {
     id: 'lote-1',
     codigo: 'L001',
-    quantidadeFisica: 50,
+    quantidadeFisicaKg: 50_000, // 50 t
     status: 'reconciliado',
     fornecedorNome: 'Sinopec',
     ativo: true,
@@ -123,28 +123,31 @@ describe('saida-manual#registrarSaidaManual — validacoes', () => {
 
   it('rejeita quantidade maior que saldo fisico', async () => {
     const { getDb } = await import('@atlas/core');
-    vi.mocked(getDb).mockReturnValue(criarDbMock(mockLote({ quantidadeFisica: 10 })) as never);
+    // 10 t = 10_000 kg de saldo
+    vi.mocked(getDb).mockReturnValue(criarDbMock(mockLote({ quantidadeFisicaKg: 10_000 })) as never);
 
+    // 15 t = 15_000 kg > 10_000 kg saldo — rejeita
     await expect(registrarSaidaManual({
       subtipo: 'descarte', loteId: 'lote-1', quantidadeOriginal: 15, unidade: 't',
       observacoes: 'teste', userId: 'u1',
     })).rejects.toThrow(/excede saldo fisico/);
   });
 
-  it('aceita conversao de unidade no calculo de saldo (kg → t)', async () => {
+  it('aceita conversao de unidade no calculo de saldo (kg direto)', async () => {
     const { getDb } = await import('@atlas/core');
-    vi.mocked(getDb).mockReturnValue(criarDbMock(mockLote({ quantidadeFisica: 5 })) as never);
+    // 5 t = 5000 kg de saldo
+    vi.mocked(getDb).mockReturnValue(criarDbMock(mockLote({ quantidadeFisicaKg: 5000 })) as never);
 
-    // 4000 kg = 4 t < 5 t saldo OK
+    // 4000 kg < 5000 kg saldo — OK
     await expect(registrarSaidaManual({
       subtipo: 'descarte', loteId: 'lote-1', quantidadeOriginal: 4000, unidade: 'kg',
       observacoes: 'teste', userId: 'u1',
     })).resolves.toBeDefined();
   });
 
-  it('6000 kg (6t) em lote com 5t fisico rejeita', async () => {
+  it('6000 kg em lote com 5000 kg fisico rejeita', async () => {
     const { getDb } = await import('@atlas/core');
-    vi.mocked(getDb).mockReturnValue(criarDbMock(mockLote({ quantidadeFisica: 5 })) as never);
+    vi.mocked(getDb).mockReturnValue(criarDbMock(mockLote({ quantidadeFisicaKg: 5000 })) as never);
 
     await expect(registrarSaidaManual({
       subtipo: 'descarte', loteId: 'lote-1', quantidadeOriginal: 6000, unidade: 'kg',

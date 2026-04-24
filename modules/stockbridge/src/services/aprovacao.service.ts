@@ -36,9 +36,9 @@ export interface PendenciaItem {
   loteCodigo: string;
   tipoAprovacao: TipoAprovacao;
   precisaNivel: 'gestor' | 'diretor';
-  quantidadePrevistaT: number | null;
-  quantidadeRecebidaT: number | null;
-  deltaT: number | null;
+  quantidadePrevistaKg: number | null;
+  quantidadeRecebidaKg: number | null;
+  deltaKg: number | null;
   tipoDivergencia: string | null;
   observacoes: string | null;
   lancadoPor: { id: string; nome: string };
@@ -64,8 +64,8 @@ export async function listarPendencias(perfil: Perfil): Promise<PendenciaItem[]>
       loteId: aprovacao.loteId,
       tipoAprovacao: aprovacao.tipoAprovacao,
       precisaNivel: aprovacao.precisaNivel,
-      quantidadePrevistaT: aprovacao.quantidadePrevistaT,
-      quantidadeRecebidaT: aprovacao.quantidadeRecebidaT,
+      quantidadePrevistaKg: aprovacao.quantidadePrevistaKg,
+      quantidadeRecebidaKg: aprovacao.quantidadeRecebidaKg,
       tipoDivergencia: aprovacao.tipoDivergencia,
       observacoes: aprovacao.observacoes,
       lancadoPor: aprovacao.lancadoPor,
@@ -90,8 +90,8 @@ export async function listarPendencias(perfil: Perfil): Promise<PendenciaItem[]>
   }
 
   return rows.map((r) => {
-    const previsto = r.quantidadePrevistaT != null ? Number(r.quantidadePrevistaT) : null;
-    const recebido = r.quantidadeRecebidaT != null ? Number(r.quantidadeRecebidaT) : null;
+    const previsto = r.quantidadePrevistaKg != null ? Number(r.quantidadePrevistaKg) : null;
+    const recebido = r.quantidadeRecebidaKg != null ? Number(r.quantidadeRecebidaKg) : null;
     const delta = previsto != null && recebido != null ? Number((recebido - previsto).toFixed(3)) : null;
     return {
       id: r.id,
@@ -99,9 +99,9 @@ export async function listarPendencias(perfil: Perfil): Promise<PendenciaItem[]>
       loteCodigo: r.loteCodigo,
       tipoAprovacao: r.tipoAprovacao,
       precisaNivel: r.precisaNivel,
-      quantidadePrevistaT: previsto,
-      quantidadeRecebidaT: recebido,
-      deltaT: delta,
+      quantidadePrevistaKg: previsto,
+      quantidadeRecebidaKg: recebido,
+      deltaKg: delta,
       tipoDivergencia: r.tipoDivergencia,
       observacoes: r.observacoes,
       lancadoPor: { id: r.lancadoPor, nome: userMap.get(r.lancadoPor) ?? 'desconhecido' },
@@ -192,7 +192,7 @@ export async function rejeitar(input: RejeitarInput): Promise<{ id: string }> {
 export interface ResubmeterInput {
   id: string;
   usuarioId: string;
-  quantidadeRecebidaT: number;
+  quantidadeRecebidaKg: number;
   observacoes: string;
 }
 
@@ -223,8 +223,8 @@ export async function resubmeter(input: ResubmeterInput): Promise<{ id: string; 
         loteId: ap.loteId,
         precisaNivel: ap.precisaNivel,
         tipoAprovacao: ap.tipoAprovacao,
-        quantidadePrevistaT: ap.quantidadePrevistaT,
-        quantidadeRecebidaT: String(input.quantidadeRecebidaT),
+        quantidadePrevistaKg: ap.quantidadePrevistaKg,
+        quantidadeRecebidaKg: String(input.quantidadeRecebidaKg),
         tipoDivergencia: ap.tipoDivergencia,
         observacoes: input.observacoes,
         lancadoPor: input.usuarioId,
@@ -235,7 +235,7 @@ export async function resubmeter(input: ResubmeterInput): Promise<{ id: string; 
       .update(lote)
       .set({
         status: 'aguardando_aprovacao',
-        quantidadeFisica: String(input.quantidadeRecebidaT),
+        quantidadeFisicaKg: String(input.quantidadeRecebidaKg),
         updatedAt: new Date(),
       })
       .where(eq(lote.id, ap.loteId));

@@ -103,7 +103,7 @@ describe('Aprovacoes — contratos', () => {
     currentUser = { id: 'u-gestor', role: 'gestor' };
     const res = await request(app)
       .post('/api/v1/stockbridge/aprovacoes/apr-1/resubmeter')
-      .send({ quantidade_recebida_t: 22, observacoes: 'ok' });
+      .send({ quantidade_recebida_kg: 22_000, observacoes: 'ok' });
     // requireOperador allows gestor too (hierarquico), entao este teste passa 200 ou 409
     expect([200, 409]).toContain(res.status);
   });

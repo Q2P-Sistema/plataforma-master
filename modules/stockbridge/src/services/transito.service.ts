@@ -35,9 +35,9 @@ export interface LoteTransitoItem {
   produtoCodigoAcxe: number;
   fornecedorNome: string;
   paisOrigem: string | null;
-  quantidadeFisica: number;
-  quantidadeFiscal: number;
-  custoUsd: number | null;
+  quantidadeFisicaKg: number;
+  quantidadeFiscalKg: number;
+  custoUsdTon: number | null;
   cnpj: string;
   estagioTransito: EstagioTransito;
   localidadeCodigo: string | null;
@@ -66,9 +66,9 @@ export async function listarPorEstagio(perfil: Perfil): Promise<Record<EstagioTr
       produtoCodigoAcxe: lote.produtoCodigoAcxe,
       fornecedorNome: lote.fornecedorNome,
       paisOrigem: lote.paisOrigem,
-      quantidadeFisica: lote.quantidadeFisica,
-      quantidadeFiscal: lote.quantidadeFiscal,
-      custoUsd: lote.custoUsd,
+      quantidadeFisicaKg: lote.quantidadeFisicaKg,
+      quantidadeFiscalKg: lote.quantidadeFiscalKg,
+      custoUsdTon: lote.custoUsdTon,
       cnpj: lote.cnpj,
       estagioTransito: lote.estagioTransito,
       di: lote.di,
@@ -100,9 +100,9 @@ export async function listarPorEstagio(perfil: Perfil): Promise<Record<EstagioTr
       produtoCodigoAcxe: Number(r.produtoCodigoAcxe),
       fornecedorNome: r.fornecedorNome,
       paisOrigem: r.paisOrigem,
-      quantidadeFisica: Number(r.quantidadeFisica),
-      quantidadeFiscal: Number(r.quantidadeFiscal),
-      custoUsd: r.custoUsd != null ? Number(r.custoUsd) : null,
+      quantidadeFisicaKg: Number(r.quantidadeFisicaKg),
+      quantidadeFiscalKg: Number(r.quantidadeFiscalKg),
+      custoUsdTon: r.custoUsdTon != null ? Number(r.custoUsdTon) : null,
       cnpj: r.cnpj,
       estagioTransito: estagio,
       localidadeCodigo: r.localidadeCodigo ?? null,

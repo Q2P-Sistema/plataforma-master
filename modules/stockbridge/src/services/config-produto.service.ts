@@ -8,7 +8,7 @@ export interface ConfigProdutoItem {
   produtoCodigoAcxe: number;
   nomeProduto: string;
   familiaOmie: string | null;
-  consumoMedioDiarioT: number | null;
+  consumoMedioDiarioKg: number | null;
   leadTimeDias: number | null;
   familiaCategoria: string | null;
   incluirEmMetricas: boolean;
@@ -26,11 +26,11 @@ export async function listarConfigProdutos(): Promise<ConfigProdutoItem[]> {
       p.codigo_produto AS codigo,
       p.descricao AS nome,
       p.descricao_familia AS familia_omie,
-      c.consumo_medio_diario_t,
+      c.consumo_medio_diario_kg,
       c.lead_time_dias,
       c.familia_categoria,
       COALESCE(c.incluir_em_metricas, true) AS incluir
-    FROM public.tb_produtos_ACXE p
+    FROM public."tbl_produtos_ACXE" p
     LEFT JOIN stockbridge.config_produto c ON c.produto_codigo_acxe = p.codigo_produto
     WHERE (p.inativo IS NULL OR p.inativo <> 'S')
     ORDER BY p.descricao
@@ -40,11 +40,11 @@ export async function listarConfigProdutos(): Promise<ConfigProdutoItem[]> {
     return { rows: [] };
   });
 
-  return (res.rows as Array<{ codigo: number; nome: string | null; familia_omie: string | null; consumo_medio_diario_t: string | null; lead_time_dias: number | null; familia_categoria: string | null; incluir: boolean }>).map((r) => ({
+  return (res.rows as Array<{ codigo: number; nome: string | null; familia_omie: string | null; consumo_medio_diario_kg: string | null; lead_time_dias: number | null; familia_categoria: string | null; incluir: boolean }>).map((r) => ({
     produtoCodigoAcxe: Number(r.codigo),
     nomeProduto: r.nome ?? 'sem nome',
     familiaOmie: r.familia_omie,
-    consumoMedioDiarioT: r.consumo_medio_diario_t != null ? Number(r.consumo_medio_diario_t) : null,
+    consumoMedioDiarioKg: r.consumo_medio_diario_kg != null ? Number(r.consumo_medio_diario_kg) : null,
     leadTimeDias: r.lead_time_dias,
     familiaCategoria: r.familia_categoria,
     incluirEmMetricas: r.incluir,
@@ -53,7 +53,7 @@ export async function listarConfigProdutos(): Promise<ConfigProdutoItem[]> {
 
 export interface UpsertConfigInput {
   produtoCodigoAcxe: number;
-  consumoMedioDiarioT?: number | null;
+  consumoMedioDiarioKg?: number | null;
   leadTimeDias?: number | null;
   familiaCategoria?: string | null;
   incluirEmMetricas?: boolean;
@@ -72,7 +72,7 @@ export async function upsertConfigProduto(input: UpsertConfigInput): Promise<typ
     const [atualizada] = await db
       .update(configProduto)
       .set({
-        ...(input.consumoMedioDiarioT !== undefined ? { consumoMedioDiarioT: input.consumoMedioDiarioT != null ? String(input.consumoMedioDiarioT) : null } : {}),
+        ...(input.consumoMedioDiarioKg !== undefined ? { consumoMedioDiarioKg: input.consumoMedioDiarioKg != null ? String(input.consumoMedioDiarioKg) : null } : {}),
         ...(input.leadTimeDias !== undefined ? { leadTimeDias: input.leadTimeDias } : {}),
         ...(input.familiaCategoria !== undefined ? { familiaCategoria: input.familiaCategoria } : {}),
         ...(input.incluirEmMetricas !== undefined ? { incluirEmMetricas: input.incluirEmMetricas } : {}),
@@ -89,7 +89,7 @@ export async function upsertConfigProduto(input: UpsertConfigInput): Promise<typ
     .insert(configProduto)
     .values({
       produtoCodigoAcxe: input.produtoCodigoAcxe,
-      consumoMedioDiarioT: input.consumoMedioDiarioT != null ? String(input.consumoMedioDiarioT) : null,
+      consumoMedioDiarioKg: input.consumoMedioDiarioKg != null ? String(input.consumoMedioDiarioKg) : null,
       leadTimeDias: input.leadTimeDias ?? null,
       familiaCategoria: input.familiaCategoria ?? null,
       incluirEmMetricas: input.incluirEmMetricas ?? true,

@@ -83,7 +83,7 @@ const FORECAST_SUB_ITEMS: SidebarSubItem[] = [
 
 const STOCKBRIDGE_SUB_ITEMS: SidebarSubItem[] = [
   { id: 'sb-cockpit', name: 'Cockpit', path: '/stockbridge/cockpit', icon: LayoutDashboard },
-  { id: 'sb-fila', name: 'Fila OMIE', path: '/stockbridge/fila', icon: FileText },
+  { id: 'sb-fila', name: 'Recebimento', path: '/stockbridge/fila', icon: FileText },
   { id: 'sb-aprovacoes', name: 'Aprovacoes', path: '/stockbridge/aprovacoes', icon: Bell },
   { id: 'sb-movimentacoes', name: 'Movimentacoes', path: '/stockbridge/movimentacoes', icon: Table },
   { id: 'sb-transito', name: 'Transito', path: '/stockbridge/transito', icon: Activity },

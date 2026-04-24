@@ -10,10 +10,10 @@ interface KPIs {
   taxaDivergenciaPct: number;
   ptaxBrl: number;
 }
-interface Evolucao { mes: string; familia: string | null; quantidadeT: number; valorBrl: number; }
+interface Evolucao { mes: string; familia: string | null; quantidadeKg: number; valorBrl: number; }
 interface AnaliticaSku {
   codigoAcxe: number; nome: string; familia: string | null; ncm: string | null;
-  quantidadeT: number; cmpUsd: number; valorBrl: number; coberturaDias: number | null; divergencias: number;
+  quantidadeKg: number; cmpUsdTon: number; valorBrl: number; coberturaDias: number | null; divergencias: number;
 }
 
 const fmtBRL = (n: number) => `R$ ${(n / 1e6).toFixed(2)} M`;
@@ -52,11 +52,11 @@ export function MetricasPage() {
     const meses = evolucao.filter((e) => e.mes === mes);
     return {
       mes,
-      quantidadeT: meses.reduce((a, b) => a + b.quantidadeT, 0),
+      quantidadeKg: meses.reduce((a, b) => a + b.quantidadeKg, 0),
       valorBrl: meses.reduce((a, b) => a + b.valorBrl, 0),
     };
   });
-  const maxEvol = Math.max(1, ...evolucaoAgrupada.map((e) => e.quantidadeT));
+  const maxEvol = Math.max(1, ...evolucaoAgrupada.map((e) => e.quantidadeKg));
 
   return (
     <div className="p-6 max-w-7xl">
@@ -84,10 +84,10 @@ export function MetricasPage() {
           <h2 className="font-serif text-sm text-atlas-ink mb-3">Evolucao — ultimos 6 meses</h2>
           <div className="flex items-end gap-2 h-32">
             {evolucaoAgrupada.map((e) => {
-              const h = (e.quantidadeT / maxEvol) * 100;
+              const h = (e.quantidadeKg / maxEvol) * 100;
               return (
                 <div key={e.mes} className="flex-1 flex flex-col items-center gap-1">
-                  <div className="text-[10px] text-atlas-muted">{Math.round(e.quantidadeT)}t</div>
+                  <div className="text-[10px] text-atlas-muted">{Math.round(e.quantidadeKg).toLocaleString('pt-BR')} kg</div>
                   <div className="w-full bg-atlas-ink rounded-t" style={{ height: `${h}%` }} />
                   <div className="text-[10px] text-atlas-muted">{e.mes}</div>
                 </div>
@@ -105,7 +105,7 @@ export function MetricasPage() {
           <table className="w-full text-xs">
             <thead>
               <tr className="bg-slate-50 dark:bg-slate-900/40 border-b border-slate-200 dark:border-slate-700">
-                {['SKU', 'Familia', 'NCM', 'Qtd (t)', 'CMP USD/t', 'Valor BRL', 'Cobertura', 'Div.'].map((h) => (
+                {['SKU', 'Familia', 'NCM', 'Qtd (kg)', 'CMP USD/t', 'Valor BRL', 'Cobertura', 'Div.'].map((h) => (
                   <th key={h} className="text-left px-3 py-2 font-semibold text-atlas-muted">{h}</th>
                 ))}
               </tr>
@@ -116,8 +116,8 @@ export function MetricasPage() {
                   <td className="px-3 py-2 font-medium">{s.nome}</td>
                   <td className="px-3 py-2 text-atlas-muted">{s.familia ?? '—'}</td>
                   <td className="px-3 py-2 font-mono text-[11px] text-atlas-muted">{s.ncm ?? '—'}</td>
-                  <td className="px-3 py-2 text-right">{s.quantidadeT.toFixed(1)}</td>
-                  <td className="px-3 py-2 text-right">{s.cmpUsd > 0 ? s.cmpUsd.toFixed(0) : '—'}</td>
+                  <td className="px-3 py-2 text-right">{s.quantidadeKg.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</td>
+                  <td className="px-3 py-2 text-right">{s.cmpUsdTon > 0 ? s.cmpUsdTon.toFixed(0) : '—'}</td>
                   <td className="px-3 py-2 text-right">{fmtBRL(s.valorBrl)}</td>
                   <td className="px-3 py-2 text-right">{s.coberturaDias != null ? `${s.coberturaDias}d` : '—'}</td>
                   <td className="px-3 py-2 text-center">

@@ -6,7 +6,7 @@ import { useAuthStore } from '../../../stores/auth.store.js';
 interface Props {
   aprovacaoId: string;
   loteCodigo: string;
-  quantidadeOriginalT: number;
+  quantidadeOriginalKg: number;
   motivoRejeicao: string;
   onClose: () => void;
   onSucesso: () => void;
@@ -24,9 +24,9 @@ function useApiFetch() {
   };
 }
 
-export function ReSubmeterModal({ aprovacaoId, loteCodigo, quantidadeOriginalT, motivoRejeicao, onClose, onSucesso }: Props) {
+export function ReSubmeterModal({ aprovacaoId, loteCodigo, quantidadeOriginalKg, motivoRejeicao, onClose, onSucesso }: Props) {
   const apiFetch = useApiFetch();
-  const [quantidade, setQuantidade] = useState(String(quantidadeOriginalT));
+  const [quantidade, setQuantidade] = useState(String(quantidadeOriginalKg));
   const [observacoes, setObservacoes] = useState('');
 
   const resubmeterMut = useMutation({
@@ -34,7 +34,7 @@ export function ReSubmeterModal({ aprovacaoId, loteCodigo, quantidadeOriginalT, 
       apiFetch(`/api/v1/stockbridge/aprovacoes/${aprovacaoId}/resubmeter`, {
         method: 'POST',
         body: JSON.stringify({
-          quantidade_recebida_t: parseFloat(quantidade.replace(',', '.')),
+          quantidade_recebida_kg: parseFloat(quantidade.replace(',', '.')),
           observacoes,
         }),
       }),
@@ -56,7 +56,7 @@ export function ReSubmeterModal({ aprovacaoId, loteCodigo, quantidadeOriginalT, 
         </p>
 
         <div>
-          <label className="block text-xs font-semibold text-atlas-muted mb-1">Nova quantidade recebida (t)</label>
+          <label className="block text-xs font-semibold text-atlas-muted mb-1">Nova quantidade recebida (kg)</label>
           <input
             value={quantidade}
             onChange={(e) => setQuantidade(e.target.value)}

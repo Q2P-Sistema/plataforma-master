@@ -12,16 +12,18 @@ let mockIdSeq = 1_000_000;
 function nextMockId(): string { mockIdSeq += 1; return String(mockIdSeq); }
 
 export function mockConsultarNF(cnpj: OmieCnpj, numeroNota: number): ConsultarNFResponse {
+  // Produto real com correlato ACXE↔Q2P (match por descricao "PEAD 5502").
+  // Permite testar o fluxo completo de recebimento em dev sem bater em API real.
   return {
     nNF: numeroNota,
     cChaveNFe: `MOCK-CHAVE-${cnpj}-${numeroNota}`,
     dEmi: '15/04/2026',
-    nCodProd: 90_000_000 + numeroNota,
+    nCodProd: cnpj === 'acxe' ? 4_452_881_285 : 3_033_098_357,
     codigoLocalEstoque: cnpj === 'acxe' ? '4498926337' : '8115873874',
-    qCom: 25,
-    uCom: 't',
-    xProd: 'PRODUTO MOCK',
-    vUnCom: 1200,
+    qCom: 25_000,
+    uCom: 'KG',
+    xProd: 'PEAD 5502',
+    vUnCom: 1.2,
     vNF: 30_000,
     nCodCli: 12345,
     cRazao: 'FORNECEDOR MOCK',

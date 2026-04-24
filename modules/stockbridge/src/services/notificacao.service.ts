@@ -51,7 +51,7 @@ export async function enviarAlertaDebitoCruzado(args: {
   notaFiscal: string;
   cnpjEmissor: 'acxe' | 'q2p';
   cnpjFisico: 'acxe' | 'q2p';
-  quantidadeT: number;
+  quantidadeKg: number;
   movimentacaoId: string;
 }): Promise<void> {
   const to = getAdminEmail();
@@ -63,7 +63,7 @@ export async function enviarAlertaDebitoCruzado(args: {
       <li><strong>NF:</strong> ${args.notaFiscal}</li>
       <li><strong>Emissor (faturou):</strong> ${args.cnpjEmissor.toUpperCase()}</li>
       <li><strong>Fisico (estoque real):</strong> ${args.cnpjFisico.toUpperCase()}</li>
-      <li><strong>Quantidade:</strong> ${args.quantidadeT.toFixed(3)} t</li>
+      <li><strong>Quantidade:</strong> ${args.quantidadeKg.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} kg</li>
     </ul>
     <p><strong>Acao esperada:</strong> setor contabil deve emitir NF de transferencia
     ${args.cnpjFisico.toUpperCase()} -> ${args.cnpjEmissor.toUpperCase()} para regularizar a posicao fiscal.
@@ -87,7 +87,7 @@ export async function enviarAlertaAprovacaoPendente(args: {
   nivel: 'gestor' | 'diretor';
   loteCodigo: string;
   produto: string;
-  quantidadeT: number;
+  quantidadeKg: number;
   detalhes?: string;
 }): Promise<void> {
   const to = getAdminEmail(); // v1: envia ao admin; refinar com lista de gestores/diretores depois
@@ -95,7 +95,7 @@ export async function enviarAlertaAprovacaoPendente(args: {
   const html = `
     <h2 style="color: #D97706;">Nova pendencia de aprovacao</h2>
     <p><strong>Tipo:</strong> ${args.tipoAprovacao}</p>
-    <p><strong>Lote:</strong> ${args.loteCodigo} — ${args.produto} (${args.quantidadeT} t)</p>
+    <p><strong>Lote:</strong> ${args.loteCodigo} — ${args.produto} (${args.quantidadeKg.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} kg)</p>
     ${args.detalhes ? `<p><strong>Detalhes:</strong> ${args.detalhes}</p>` : ''}
     <p>Acesse o painel de aprovacoes no StockBridge para revisar.</p>
     <p style="color:#888;font-size:11px;">Sistema Atlas — StockBridge</p>

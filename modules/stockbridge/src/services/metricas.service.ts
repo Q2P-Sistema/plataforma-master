@@ -15,7 +15,7 @@ export interface MetricasKPIs {
 export interface EvolucaoMensal {
   mes: string;
   familia: string | null;
-  quantidadeT: number;
+  quantidadeKg: number;
   valorBrl: number;
 }
 
@@ -24,27 +24,29 @@ export interface TabelaAnaliticaSku {
   nome: string;
   familia: string | null;
   ncm: string | null;
-  quantidadeT: number;
-  cmpUsd: number;
+  quantidadeKg: number;
+  cmpUsdTon: number;
   valorBrl: number;
   coberturaDias: number | null;
   divergencias: number;
 }
 
 /**
- * Calcula CMP (custo medio ponderado) em USD/t para uma lista de lotes.
+ * Calcula CMP (custo medio ponderado) em USD/tonelada para uma lista de lotes.
  * Pura — testavel sem DB.
+ * Quantidade em kg e custo em USD/tonelada sao convertidos para ton antes da media.
  */
-export function calcularCMP(lotes: Array<{ quantidadeFisica: number; custoUsd: number | null }>): number {
+export function calcularCMP(lotes: Array<{ quantidadeFisicaKg: number; custoUsdTon: number | null }>): number {
   let totalUsd = 0;
-  let totalT = 0;
+  let totalTon = 0;
   for (const l of lotes) {
-    if (l.custoUsd != null && l.custoUsd > 0 && l.quantidadeFisica > 0) {
-      totalUsd += l.quantidadeFisica * l.custoUsd;
-      totalT += l.quantidadeFisica;
+    if (l.custoUsdTon != null && l.custoUsdTon > 0 && l.quantidadeFisicaKg > 0) {
+      const qtyTon = l.quantidadeFisicaKg / 1000;
+      totalUsd += qtyTon * l.custoUsdTon;
+      totalTon += qtyTon;
     }
   }
-  return totalT > 0 ? totalUsd / totalT : 0;
+  return totalTon > 0 ? totalUsd / totalTon : 0;
 }
 
 /**
@@ -52,12 +54,12 @@ export function calcularCMP(lotes: Array<{ quantidadeFisica: number; custoUsd: n
  * (unico estagio com preco USD nao liquidado em BRL).
  */
 export function calcularExposicaoCambial(
-  lotes: Array<{ estagioTransito: string | null; quantidadeFisica: number; custoUsd: number | null; ativo: boolean }>,
+  lotes: Array<{ estagioTransito: string | null; quantidadeFisicaKg: number; custoUsdTon: number | null; ativo: boolean }>,
 ): number {
   let exposicao = 0;
   for (const l of lotes) {
-    if (l.ativo && l.estagioTransito === 'transito_intl' && l.custoUsd != null && l.custoUsd > 0) {
-      exposicao += l.quantidadeFisica * l.custoUsd;
+    if (l.ativo && l.estagioTransito === 'transito_intl' && l.custoUsdTon != null && l.custoUsdTon > 0) {
+      exposicao += (l.quantidadeFisicaKg / 1000) * l.custoUsdTon;
     }
   }
   return exposicao;
@@ -92,8 +94,8 @@ export async function getKPIs(): Promise<MetricasKPIs> {
 
   const saldoRes = await pool.query(`
     SELECT
-      quantidade_fisica::numeric AS qtd,
-      custo_usd::numeric AS custo_usd,
+      quantidade_fisica_kg::numeric AS qtd,
+      custo_usd_ton::numeric AS custo_usd_ton,
       estagio_transito,
       ativo
     FROM stockbridge.lote
@@ -103,33 +105,33 @@ export async function getKPIs(): Promise<MetricasKPIs> {
     return { rows: [] };
   });
 
-  const lotes = (saldoRes.rows as Array<{ qtd: string; custo_usd: string | null; estagio_transito: string | null; ativo: boolean }>).map((r) => ({
-    quantidadeFisica: Number(r.qtd),
-    custoUsd: r.custo_usd != null ? Number(r.custo_usd) : null,
+  const lotes = (saldoRes.rows as Array<{ qtd: string; custo_usd_ton: string | null; estagio_transito: string | null; ativo: boolean }>).map((r) => ({
+    quantidadeFisicaKg: Number(r.qtd),
+    custoUsdTon: r.custo_usd_ton != null ? Number(r.custo_usd_ton) : null,
     estagioTransito: r.estagio_transito,
     ativo: r.ativo,
   }));
 
   // Valor de estoque = saldo reconciliado/provisorio (excluido transito)
   const estoqueFisico = lotes.filter((l) => l.estagioTransito == null);
-  const cmp = calcularCMP(estoqueFisico);
-  const totalT = estoqueFisico.reduce((acc, l) => acc + l.quantidadeFisica, 0);
-  const valorEstoqueUsd = totalT * cmp;
+  const cmpUsdTon = calcularCMP(estoqueFisico);
+  const totalKg = estoqueFisico.reduce((acc, l) => acc + l.quantidadeFisicaKg, 0);
+  const valorEstoqueUsd = (totalKg / 1000) * cmpUsdTon;
   const valorEstoqueBrl = valorEstoqueUsd * ptax;
 
   const exposicaoUsd = calcularExposicaoCambial(lotes);
   const exposicaoBrl = exposicaoUsd * ptax;
 
-  // Giro medio por familia (consumoMedioDiarioT da config_produto)
+  // Giro medio por familia (consumo_medio_diario_kg da config_produto)
   const giroRes = await pool.query(`
     SELECT
       c.familia_categoria AS fam,
       AVG(CASE
-        WHEN c.consumo_medio_diario_t > 0
-        THEN (SELECT COALESCE(SUM(quantidade_fisica), 0)
+        WHEN c.consumo_medio_diario_kg > 0
+        THEN (SELECT COALESCE(SUM(quantidade_fisica_kg), 0)
               FROM stockbridge.lote l
               WHERE l.produto_codigo_acxe = c.produto_codigo_acxe
-              AND l.ativo = true AND l.estagio_transito IS NULL) / c.consumo_medio_diario_t
+              AND l.ativo = true AND l.estagio_transito IS NULL) / c.consumo_medio_diario_kg
         ELSE NULL END)::numeric AS dias_medio
     FROM stockbridge.config_produto c
     WHERE c.incluir_em_metricas = true AND c.familia_categoria IS NOT NULL
@@ -172,8 +174,8 @@ export async function getEvolucao(meses: number = 6): Promise<EvolucaoMensal[]> 
     SELECT
       to_char(date_trunc('month', m.created_at), 'YYYY-MM') AS mes,
       c.familia_categoria AS familia,
-      SUM(ABS(m.quantidade_t))::numeric AS qtd,
-      SUM(ABS(m.quantidade_t) * COALESCE(l.custo_usd, 0) * 5.0)::numeric AS valor_brl
+      SUM(ABS(m.quantidade_kg))::numeric AS qtd,
+      SUM(ABS(m.quantidade_kg) / 1000.0 * COALESCE(l.custo_usd_ton, 0) * 5.0)::numeric AS valor_brl
     FROM stockbridge.movimentacao m
     LEFT JOIN stockbridge.lote l ON l.id = m.lote_id
     LEFT JOIN stockbridge.config_produto c ON c.produto_codigo_acxe = l.produto_codigo_acxe
@@ -189,7 +191,7 @@ export async function getEvolucao(meses: number = 6): Promise<EvolucaoMensal[]> 
   return (res.rows as Array<{ mes: string; familia: string | null; qtd: string; valor_brl: string }>).map((r) => ({
     mes: r.mes,
     familia: r.familia,
-    quantidadeT: Number(r.qtd),
+    quantidadeKg: Number(r.qtd),
     valorBrl: Number(r.valor_brl),
   }));
 }
@@ -202,10 +204,10 @@ export async function getTabelaAnalitica(): Promise<TabelaAnaliticaSku[]> {
     WITH saldo AS (
       SELECT
         l.produto_codigo_acxe,
-        SUM(l.quantidade_fisica)::numeric AS qtd,
-        CASE WHEN SUM(l.quantidade_fisica) > 0
-             THEN SUM(l.quantidade_fisica * COALESCE(l.custo_usd, 0)) / SUM(l.quantidade_fisica)
-             ELSE 0 END::numeric AS cmp_usd
+        SUM(l.quantidade_fisica_kg)::numeric AS qtd_kg,
+        CASE WHEN SUM(l.quantidade_fisica_kg) > 0
+             THEN SUM(l.quantidade_fisica_kg * COALESCE(l.custo_usd_ton, 0)) / SUM(l.quantidade_fisica_kg)
+             ELSE 0 END::numeric AS cmp_usd_ton
       FROM stockbridge.lote l
       WHERE l.ativo = true AND l.estagio_transito IS NULL
       GROUP BY l.produto_codigo_acxe
@@ -222,34 +224,34 @@ export async function getTabelaAnalitica(): Promise<TabelaAnaliticaSku[]> {
       COALESCE(p.descricao, 'Produto ' || s.produto_codigo_acxe::text) AS nome,
       COALESCE(c.familia_categoria, p.descricao_familia) AS familia,
       p.ncm,
-      s.qtd,
-      s.cmp_usd,
-      c.consumo_medio_diario_t,
+      s.qtd_kg,
+      s.cmp_usd_ton,
+      c.consumo_medio_diario_kg,
       COALESCE(d.c, 0) AS divs
     FROM saldo s
-    LEFT JOIN public.tb_produtos_ACXE p ON p.codigo_produto = s.produto_codigo_acxe
+    LEFT JOIN public."tbl_produtos_ACXE" p ON p.codigo_produto = s.produto_codigo_acxe
     LEFT JOIN stockbridge.config_produto c ON c.produto_codigo_acxe = s.produto_codigo_acxe
     LEFT JOIN divs d ON d.produto_codigo_acxe = s.produto_codigo_acxe
     WHERE COALESCE(c.incluir_em_metricas, true) = true
-    ORDER BY (s.qtd * s.cmp_usd) DESC
+    ORDER BY (s.qtd_kg * s.cmp_usd_ton) DESC
   `).catch((err) => {
     logger.warn({ err: err.message }, 'Query tabela analitica falhou');
     return { rows: [] };
   });
 
-  return (res.rows as Array<{ produto_codigo_acxe: number; nome: string; familia: string | null; ncm: string | null; qtd: string; cmp_usd: string; consumo_medio_diario_t: string | null; divs: number }>).map((r) => {
-    const qtd = Number(r.qtd);
-    const cmp = Number(r.cmp_usd);
-    const consumo = r.consumo_medio_diario_t != null ? Number(r.consumo_medio_diario_t) : null;
-    const cobertura = consumo && consumo > 0 ? Math.round(qtd / consumo) : null;
+  return (res.rows as Array<{ produto_codigo_acxe: number; nome: string; familia: string | null; ncm: string | null; qtd_kg: string; cmp_usd_ton: string; consumo_medio_diario_kg: string | null; divs: number }>).map((r) => {
+    const qtdKg = Number(r.qtd_kg);
+    const cmpUsdTon = Number(r.cmp_usd_ton);
+    const consumoKg = r.consumo_medio_diario_kg != null ? Number(r.consumo_medio_diario_kg) : null;
+    const cobertura = consumoKg && consumoKg > 0 ? Math.round(qtdKg / consumoKg) : null;
     return {
       codigoAcxe: Number(r.produto_codigo_acxe),
       nome: String(r.nome),
       familia: r.familia,
       ncm: r.ncm,
-      quantidadeT: qtd,
-      cmpUsd: cmp,
-      valorBrl: Math.round(qtd * cmp * ptax),
+      quantidadeKg: qtdKg,
+      cmpUsdTon,
+      valorBrl: Math.round((qtdKg / 1000) * cmpUsdTon * ptax),
       coberturaDias: cobertura,
       divergencias: Number(r.divs),
     };

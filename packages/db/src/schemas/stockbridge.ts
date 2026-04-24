@@ -57,9 +57,9 @@ export const lote = stockbridgeSchema.table(
     produtoCodigoQ2p: bigint('produto_codigo_q2p', { mode: 'number' }),
     fornecedorNome: varchar('fornecedor_nome', { length: 255 }).notNull(),
     paisOrigem: varchar('pais_origem', { length: 100 }),
-    quantidadeFisica: numeric('quantidade_fisica', { precision: 12, scale: 3 }).notNull().default('0'),
-    quantidadeFiscal: numeric('quantidade_fiscal', { precision: 12, scale: 3 }).notNull().default('0'),
-    custoUsd: numeric('custo_usd', { precision: 12, scale: 2 }),
+    quantidadeFisicaKg: numeric('quantidade_fisica_kg', { precision: 12, scale: 3 }).notNull().default('0'),
+    quantidadeFiscalKg: numeric('quantidade_fiscal_kg', { precision: 12, scale: 3 }).notNull().default('0'),
+    custoUsdTon: numeric('custo_usd_ton', { precision: 12, scale: 2 }),
     status: varchar('status', { length: 30 })
       .notNull()
       .default('provisorio')
@@ -105,7 +105,7 @@ export const movimentacao = stockbridgeSchema.table(
       >(),
     subtipo: varchar('subtipo', { length: 50 }),
     loteId: uuid('lote_id').references(() => lote.id),
-    quantidadeT: numeric('quantidade_t', { precision: 12, scale: 3 }).notNull(),
+    quantidadeKg: numeric('quantidade_kg', { precision: 12, scale: 3 }).notNull(),
     mvAcxe: smallint('mv_acxe'),
     dtAcxe: timestamp('dt_acxe', { withTimezone: true }),
     idMovestAcxe: varchar('id_movest_acxe', { length: 100 }),
@@ -145,8 +145,8 @@ export const aprovacao = stockbridgeSchema.table(
       | 'saida_quebra'
       | 'ajuste_inventario'
     >(),
-    quantidadePrevistaT: numeric('quantidade_prevista_t', { precision: 12, scale: 3 }),
-    quantidadeRecebidaT: numeric('quantidade_recebida_t', { precision: 12, scale: 3 }),
+    quantidadePrevistaKg: numeric('quantidade_prevista_kg', { precision: 12, scale: 3 }),
+    quantidadeRecebidaKg: numeric('quantidade_recebida_kg', { precision: 12, scale: 3 }),
     tipoDivergencia: varchar('tipo_divergencia', { length: 30 }).$type<'faltando' | 'varredura' | 'cruzada' | null>(),
     observacoes: text('observacoes'),
     lancadoPor: uuid('lancado_por').notNull().references(() => users.id),
@@ -176,7 +176,7 @@ export const divergencia = stockbridgeSchema.table(
     tipo: varchar('tipo', { length: 30 })
       .notNull()
       .$type<'faltando' | 'varredura' | 'cruzada' | 'fiscal_pendente'>(),
-    quantidadeDeltaT: numeric('quantidade_delta_t', { precision: 12, scale: 3 }).notNull(),
+    quantidadeDeltaKg: numeric('quantidade_delta_kg', { precision: 12, scale: 3 }).notNull(),
     valorUsd: numeric('valor_usd', { precision: 12, scale: 2 }),
     status: varchar('status', { length: 20 })
       .notNull()
@@ -214,7 +214,7 @@ export const configProduto = stockbridgeSchema.table(
   {
     id: uuid('id').defaultRandom().primaryKey(),
     produtoCodigoAcxe: bigint('produto_codigo_acxe', { mode: 'number' }).notNull().unique(),
-    consumoMedioDiarioT: numeric('consumo_medio_diario_t', { precision: 10, scale: 3 }),
+    consumoMedioDiarioKg: numeric('consumo_medio_diario_kg', { precision: 10, scale: 3 }),
     leadTimeDias: integer('lead_time_dias'),
     familiaCategoria: varchar('familia_categoria', { length: 50 }),
     incluirEmMetricas: boolean('incluir_em_metricas').notNull().default(true),

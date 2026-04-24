@@ -18,7 +18,7 @@ router.get('/api/v1/stockbridge/config/produtos', requireDiretor, async (_req: R
 });
 
 const PatchSchema = z.object({
-  consumo_medio_diario_t: z.number().nonnegative().nullable().optional(),
+  consumo_medio_diario_kg: z.number().nonnegative().nullable().optional(),
   lead_time_dias: z.number().int().min(0).nullable().optional(),
   familia_categoria: z.string().max(50).nullable().optional(),
   incluir_em_metricas: z.boolean().optional(),
@@ -44,7 +44,7 @@ router.patch('/api/v1/stockbridge/config/produtos/:codigo_acxe', requireDiretor,
   try {
     const data = await upsertConfigProduto({
       produtoCodigoAcxe: codigo,
-      consumoMedioDiarioT: parsed.data.consumo_medio_diario_t,
+      consumoMedioDiarioKg: parsed.data.consumo_medio_diario_kg,
       leadTimeDias: parsed.data.lead_time_dias,
       familiaCategoria: parsed.data.familia_categoria,
       incluirEmMetricas: parsed.data.incluir_em_metricas,

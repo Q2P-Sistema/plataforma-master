@@ -9,7 +9,7 @@ import {
   type ConsultarNFResponse,
 } from '@atlas/integration-omie';
 import { getCorrelacao, CorrelacaoNaoEncontradaError } from './correlacao.service.js';
-import { converterParaToneladas } from './motor.service.js';
+import { converterParaKg } from './motor.service.js';
 import {
   enviarAlertaProdutoSemCorrelato,
   enviarAlertaAprovacaoPendente,
@@ -39,7 +39,7 @@ export interface FilaItemOmie {
   produto: { codigo: number; nome: string };
   qtdOriginal: number;
   unidade: UnidadeMedida;
-  qtdT: number;
+  qtdKg: number;
   localidadeCodigo: string;
   dtEmissao: string;
   custoUsd: number;
@@ -83,7 +83,8 @@ export async function getFilaOmie(params: {
     }
 
     const omieData = await consultarNF(params.cnpj, numero);
-    const qtdT = Number(new Decimal(omieData.qCom).toFixed(3));
+    const unidadeNormalizada = normalizarUnidade(omieData.uCom);
+    const qtdKg = Number(new Decimal(converterParaKg(omieData.qCom, unidadeNormalizada)).toFixed(3));
     const tipo = inferirSubtipoEntrada(omieData);
 
     return [
@@ -93,8 +94,8 @@ export async function getFilaOmie(params: {
         cnpj: params.cnpj,
         produto: { codigo: omieData.nCodProd, nome: omieData.xProd },
         qtdOriginal: omieData.qCom,
-        unidade: normalizarUnidade(omieData.uCom),
-        qtdT,
+        unidade: unidadeNormalizada,
+        qtdKg,
         localidadeCodigo: omieData.codigoLocalEstoque,
         dtEmissao: omieData.dEmi,
         custoUsd: omieData.vUnCom,
@@ -104,7 +105,7 @@ export async function getFilaOmie(params: {
 
   // Caso 2: lista — mock retorna amostra em dev; prod retorna vazio com TODO
   if (isMockMode()) {
-    const mocks: Array<Omit<FilaItemOmie, 'qtdT'>> = [
+    const mocks: Array<Omit<FilaItemOmie, 'qtdKg'>> = [
       {
         nf: 'IMP-2026-0301',
         tipo: 'importacao',
@@ -128,7 +129,7 @@ export async function getFilaOmie(params: {
         custoUsd: 1490,
       },
     ];
-    return mocks.map((m) => ({ ...m, qtdT: converterParaToneladas(m.qtdOriginal, m.unidade) }));
+    return mocks.map((m) => ({ ...m, qtdKg: converterParaKg(m.qtdOriginal, m.unidade) }));
   }
 
   // TODO(phase-3.5): em producao, listar NFs pendentes lendo do sync OMIE do n8n
@@ -152,7 +153,7 @@ export interface ProcessarRecebimentoResult {
   status: 'provisorio' | 'aguardando_aprovacao';
   movimentacaoId?: string;
   aprovacaoId?: string;
-  deltaT?: number;
+  deltaKg?: number;
   tipoDivergencia?: 'faltando' | 'varredura';
   omie?: {
     acxe: { idMovest: string; idAjuste: string };
@@ -193,10 +194,11 @@ export async function processarRecebimento(
 
   // 2. Consulta NF no OMIE (lado do CNPJ emissor)
   const omieData = await consultarNF(input.cnpj, Number(input.nf) || 0);
-  const qtdNfT = Number(new Decimal(converterParaToneladas(omieData.qCom, normalizarUnidade(omieData.uCom))).toFixed(3));
-  const qtdFisicaT = Number(new Decimal(converterParaToneladas(input.quantidadeInput, input.unidadeInput)).toFixed(3));
-  const deltaT = Number(new Decimal(qtdFisicaT).minus(qtdNfT).toFixed(3));
-  const temDivergencia = Math.abs(deltaT) > 0.01;
+  const qtdNfKg = Number(new Decimal(converterParaKg(omieData.qCom, normalizarUnidade(omieData.uCom))).toFixed(3));
+  const qtdFisicaKg = Number(new Decimal(converterParaKg(input.quantidadeInput, input.unidadeInput)).toFixed(3));
+  const deltaKg = Number(new Decimal(qtdFisicaKg).minus(qtdNfKg).toFixed(3));
+  // Tolerancia de 1 kg (antes era 0.01 t = 10 kg — aperto agora que a unidade e maior).
+  const temDivergencia = Math.abs(deltaKg) > 1;
 
   // 3. Localidade destino (da requisicao)
   const [loc] = await db
@@ -242,9 +244,9 @@ export async function processarRecebimento(
     return processarRecebimentoComDivergencia({
       input,
       omieData,
-      qtdNfT,
-      qtdFisicaT,
-      deltaT,
+      qtdNfKg,
+      qtdFisicaKg,
+      deltaKg,
       localidadeCodigoQ2p: corr.codigoLocalEstoqueQ2p,
       correlacao,
     });
@@ -260,7 +262,7 @@ export async function processarRecebimento(
       codigoLocalEstoque: String(corr.codigoLocalEstoqueAcxe),
       idProduto: correlacao.codigoProdutoAcxe,
       dataAtual: formatarDataBR(new Date()),
-      quantidade: qtdFisicaT,
+      quantidade: qtdFisicaKg,
       observacao: `Recebimento NF ${input.nf} sem divergencias`,
       origem: 'AJU',
       tipo: 'TRF',
@@ -278,7 +280,7 @@ export async function processarRecebimento(
       codigoLocalEstoque: String(corr.codigoLocalEstoqueQ2p),
       idProduto: correlacao.codigoProdutoQ2p,
       dataAtual: formatarDataBR(new Date()),
-      quantidade: qtdFisicaT,
+      quantidade: qtdFisicaKg,
       observacao: `Recebimento NF ${input.nf} sem divergencias`,
       origem: 'AJU',
       tipo: 'ENT',
@@ -304,9 +306,9 @@ export async function processarRecebimento(
         produtoCodigoAcxe: correlacao.codigoProdutoAcxe,
         produtoCodigoQ2p: correlacao.codigoProdutoQ2p,
         fornecedorNome: omieData.cRazao,
-        quantidadeFisica: String(qtdFisicaT),
-        quantidadeFiscal: String(qtdNfT),
-        custoUsd: omieData.vUnCom > 0 ? String(omieData.vUnCom) : null,
+        quantidadeFisicaKg: String(qtdFisicaKg),
+        quantidadeFiscalKg: String(qtdNfKg),
+        custoUsdTon: omieData.vUnCom > 0 ? String(omieData.vUnCom) : null,
         status: 'provisorio',
         estagioTransito: null,
         localidadeId: input.localidadeId,
@@ -324,7 +326,7 @@ export async function processarRecebimento(
         tipoMovimento: 'entrada_nf',
         subtipo: inferirSubtipoEntrada(omieData),
         loteId: loteCriado!.id,
-        quantidadeT: String(qtdFisicaT),
+        quantidadeKg: String(qtdFisicaKg),
         mvAcxe: 1,
         dtAcxe: new Date(),
         idMovestAcxe: idACXE.idMovest,
@@ -354,15 +356,15 @@ export async function processarRecebimento(
 async function processarRecebimentoComDivergencia(args: {
   input: ProcessarRecebimentoInput;
   omieData: ConsultarNFResponse;
-  qtdNfT: number;
-  qtdFisicaT: number;
-  deltaT: number;
+  qtdNfKg: number;
+  qtdFisicaKg: number;
+  deltaKg: number;
   localidadeCodigoQ2p: number;
   correlacao: Awaited<ReturnType<typeof getCorrelacao>>;
 }): Promise<ProcessarRecebimentoResult> {
   const db = getDb();
-  const { input, omieData, qtdNfT, qtdFisicaT, deltaT, correlacao } = args;
-  const tipoDivergencia: 'faltando' | 'varredura' = deltaT < 0 ? 'faltando' : 'varredura';
+  const { input, omieData, qtdNfKg, qtdFisicaKg, deltaKg, correlacao } = args;
+  const tipoDivergencia: 'faltando' | 'varredura' = deltaKg < 0 ? 'faltando' : 'varredura';
 
   const resultado = await db.transaction(async (tx) => {
     const codigo = await proximoCodigoLote(tx, 'L');
@@ -373,9 +375,9 @@ async function processarRecebimentoComDivergencia(args: {
         produtoCodigoAcxe: correlacao.codigoProdutoAcxe,
         produtoCodigoQ2p: correlacao.codigoProdutoQ2p,
         fornecedorNome: omieData.cRazao,
-        quantidadeFisica: String(qtdFisicaT),
-        quantidadeFiscal: String(qtdNfT),
-        custoUsd: omieData.vUnCom > 0 ? String(omieData.vUnCom) : null,
+        quantidadeFisicaKg: String(qtdFisicaKg),
+        quantidadeFiscalKg: String(qtdNfKg),
+        custoUsdTon: omieData.vUnCom > 0 ? String(omieData.vUnCom) : null,
         status: 'aguardando_aprovacao',
         localidadeId: input.localidadeId,
         cnpj: input.cnpj === 'acxe' ? 'Acxe Matriz' : 'Q2P Matriz',
@@ -391,8 +393,8 @@ async function processarRecebimentoComDivergencia(args: {
         loteId: loteCriado!.id,
         precisaNivel: 'gestor',
         tipoAprovacao: 'recebimento_divergencia',
-        quantidadePrevistaT: String(qtdNfT),
-        quantidadeRecebidaT: String(qtdFisicaT),
+        quantidadePrevistaKg: String(qtdNfKg),
+        quantidadeRecebidaKg: String(qtdFisicaKg),
         tipoDivergencia,
         observacoes: input.observacoes ?? null,
         lancadoPor: input.userId,
@@ -409,8 +411,8 @@ async function processarRecebimentoComDivergencia(args: {
     nivel: 'gestor',
     loteCodigo: resultado.loteCodigo,
     produto: correlacao.descricao,
-    quantidadeT: qtdFisicaT,
-    detalhes: `Divergencia ${tipoDivergencia} de ${Math.abs(deltaT).toFixed(3)} t — ${input.observacoes ?? ''}`,
+    quantidadeKg: qtdFisicaKg,
+    detalhes: `Divergencia ${tipoDivergencia} de ${Math.abs(deltaKg).toFixed(3)} kg — ${input.observacoes ?? ''}`,
   });
 
   return {
@@ -418,7 +420,7 @@ async function processarRecebimentoComDivergencia(args: {
     loteCodigo: resultado.loteCodigo,
     status: 'aguardando_aprovacao',
     aprovacaoId: resultado.aprovacaoId,
-    deltaT,
+    deltaKg,
     tipoDivergencia,
   };
 }

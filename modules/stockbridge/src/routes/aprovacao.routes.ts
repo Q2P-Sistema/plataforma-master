@@ -70,7 +70,7 @@ router.post('/api/v1/stockbridge/aprovacoes/:id/rejeitar', requireGestor, async 
 
 // POST /api/v1/stockbridge/aprovacoes/:id/resubmeter — operador
 const ResubmeterSchema = z.object({
-  quantidade_recebida_t: z.number().positive(),
+  quantidade_recebida_kg: z.number().positive(),
   observacoes: z.string().min(1),
 });
 router.post('/api/v1/stockbridge/aprovacoes/:id/resubmeter', requireOperador, async (req: Request, res: Response) => {
@@ -92,7 +92,7 @@ router.post('/api/v1/stockbridge/aprovacoes/:id/resubmeter', requireOperador, as
     const result = await resubmeter({
       id,
       usuarioId: userId,
-      quantidadeRecebidaT: parsed.data.quantidade_recebida_t,
+      quantidadeRecebidaKg: parsed.data.quantidade_recebida_kg,
       observacoes: parsed.data.observacoes,
     });
     res.json({ data: result, error: null });

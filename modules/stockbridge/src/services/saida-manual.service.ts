@@ -2,7 +2,7 @@ import { eq, and } from 'drizzle-orm';
 import Decimal from 'decimal.js';
 import { getDb, createLogger } from '@atlas/core';
 import { lote, movimentacao, aprovacao, divergencia } from '@atlas/db';
-import { converterParaToneladas } from './motor.service.js';
+import { converterParaKg } from './motor.service.js';
 import { enviarAlertaAprovacaoPendente } from './notificacao.service.js';
 import { NIVEL_APROVACAO_POR_SUBTIPO, type SubtipoMovimento, type UnidadeMedida } from '../types.js';
 
@@ -103,11 +103,11 @@ export async function registrarSaidaManual(
     );
   }
 
-  const quantidadeT = Number(new Decimal(converterParaToneladas(input.quantidadeOriginal, input.unidade)).toFixed(3));
-  const fisicoAtual = Number(loteRow.quantidadeFisica);
-  if (quantidadeT > fisicoAtual) {
+  const quantidadeKg = Number(new Decimal(converterParaKg(input.quantidadeOriginal, input.unidade)).toFixed(3));
+  const fisicoAtual = Number(loteRow.quantidadeFisicaKg);
+  if (quantidadeKg > fisicoAtual) {
     throw new LoteInvalidoError(
-      `Quantidade solicitada (${quantidadeT} t) excede saldo fisico do lote (${fisicoAtual} t)`,
+      `Quantidade solicitada (${quantidadeKg} kg) excede saldo fisico do lote (${fisicoAtual} kg)`,
     );
   }
 
@@ -123,7 +123,7 @@ export async function registrarSaidaManual(
         tipoMovimento: 'saida_manual',
         subtipo: input.subtipo as SubtipoMovimento,
         loteId: loteRow.id,
-        quantidadeT: String(-Math.abs(quantidadeT)), // saida = negativo
+        quantidadeKg: String(-Math.abs(quantidadeKg)), // saida = negativo
         observacoes: input.observacoes,
       })
       .returning();
@@ -134,7 +134,7 @@ export async function registrarSaidaManual(
         loteId: loteRow.id,
         precisaNivel: nivel,
         tipoAprovacao,
-        quantidadeRecebidaT: String(quantidadeT),
+        quantidadeRecebidaKg: String(quantidadeKg),
         observacoes: input.observacoes,
         lancadoPor: input.userId,
       })
@@ -148,7 +148,7 @@ export async function registrarSaidaManual(
           loteId: loteRow.id,
           movimentacaoId: mov!.id,
           tipo: 'fiscal_pendente',
-          quantidadeDeltaT: String(-quantidadeT),
+          quantidadeDeltaKg: String(-quantidadeKg),
           status: 'aberta',
           observacoes: `Saida manual tipo ${input.subtipo} — aguarda regularizacao fiscal`,
         })
@@ -168,12 +168,12 @@ export async function registrarSaidaManual(
     nivel,
     loteCodigo: loteRow.codigo,
     produto: loteRow.fornecedorNome,
-    quantidadeT,
+    quantidadeKg,
     detalhes: `Saida manual ${input.subtipo} — ${input.observacoes}`,
   });
 
   logger.info(
-    { movimentacaoId: resultado.movimentacaoId, subtipo: input.subtipo, nivel, quantidadeT },
+    { movimentacaoId: resultado.movimentacaoId, subtipo: input.subtipo, nivel, quantidadeKg },
     'Saida manual registrada, aguarda aprovacao',
   );
 
@@ -188,7 +188,7 @@ export async function registrarSaidaManual(
 
 export interface RetornoComodatoInput {
   movimentacaoOrigemId: string;
-  quantidadeRetornadaT: number;
+  quantidadeRetornadaKg: number;
   observacoes: string;
   userId: string;
 }
@@ -217,7 +217,7 @@ export async function registrarRetornoComodato(
         tipoMovimento: 'entrada_manual',
         subtipo: 'retorno_comodato',
         loteId: movOrigem.loteId!,
-        quantidadeT: String(Math.abs(input.quantidadeRetornadaT)),
+        quantidadeKg: String(Math.abs(input.quantidadeRetornadaKg)),
         observacoes: `Retorno de comodato da movimentacao ${input.movimentacaoOrigemId}: ${input.observacoes}`,
       })
       .returning();

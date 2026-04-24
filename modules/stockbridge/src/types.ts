@@ -71,11 +71,11 @@ export type TipoLocalidade = 'proprio' | 'tpl' | 'porto_seco' | 'virtual_transit
 
 export type UnidadeMedida = 't' | 'kg' | 'saco' | 'bigbag';
 
-export const FATOR_PARA_TONELADA: Record<UnidadeMedida, number> = {
-  t: 1,
-  kg: 0.001,
-  saco: 0.025, // saco de 25 kg
-  bigbag: 1, // big bag de 1 tonelada
+export const FATOR_PARA_KG: Record<UnidadeMedida, number> = {
+  t: 1000,
+  kg: 1,
+  saco: 25, // saco de 25 kg
+  bigbag: 1000, // big bag de 1 tonelada = 1000 kg
 };
 
 export const CNPJ_ACXE = 'Acxe Matriz';
