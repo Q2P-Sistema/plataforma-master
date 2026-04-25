@@ -182,6 +182,9 @@ export async function aprovar(input: AprovarInput): Promise<{ id: string; loteSt
     const vNF = Number(loteRow.valorTotalNfBrl);
 
     const valorUnitAcxe = calcularValorUnitarioAcxe(vNF, qtdNfKg);
+    const motivoOperador = apPre.observacoes?.trim()
+      ? `\nMotivo da divergencia: ${apPre.observacoes.trim()}`
+      : '';
 
     omieIds = await executarAjusteOmieDual({
       codigoLocalEstoqueAcxeOrigem: loteRow.codigoLocalEstoqueOrigemAcxe,
@@ -193,7 +196,7 @@ export async function aprovar(input: AprovarInput): Promise<{ id: string; loteSt
       valorUnitarioAcxe: valorUnitAcxe,
       valorUnitarioQ2p: calcularValorUnitarioQ2p(vNF, qtdNfKg),
       notaFiscal: loteRow.notaFiscal,
-      observacaoSufixo: `com divergencia aprovada por gestor (${apPre.tipoDivergencia ?? 'n/a'})`,
+      observacaoSufixo: `com divergencia aprovada por gestor (${apPre.tipoDivergencia ?? 'n/a'})${motivoOperador}`,
     });
 
     // 2a chamada ACXE: transfere a DIFERENCA (qtdNF - qtdRecebida) para estoque
@@ -214,7 +217,7 @@ export async function aprovar(input: AprovarInput): Promise<{ id: string; loteSt
           quantidadeKg: qtdDiferencaKg,
           valorUnitarioAcxe: valorUnitAcxe,
           notaFiscal: loteRow.notaFiscal,
-          observacaoSufixo: `divergencia ${apPre.tipoDivergencia} de ${qtdDiferencaKg} kg (NF ${loteRow.notaFiscal})`,
+          observacaoSufixo: `divergencia ${apPre.tipoDivergencia} de ${qtdDiferencaKg} kg${motivoOperador}`,
         });
         logger.info(
           { idDiferenca, qtdDiferencaKg, tipo: apPre.tipoDivergencia, dest: codigoLocalEstoqueDiferenca },
