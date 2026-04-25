@@ -253,13 +253,17 @@ export async function processarRecebimento(
   }
 
   // 6. Sem divergencia: chama OMIE dos dois lados antes de persistir
+  // Fiel ao legado: ACXE = transferencia (origem trânsito da NF → destino escolhido),
+  // Q2P = entrada inicial. Valor unitario diferente em cada lado.
   const { idACXE, idQ2P } = await executarAjusteOmieDual({
-    codigoLocalEstoqueAcxe: corr.codigoLocalEstoqueAcxe,
+    codigoLocalEstoqueAcxeOrigem: omieData.codigoLocalEstoque,
+    codigoLocalEstoqueAcxeDestino: corr.codigoLocalEstoqueAcxe,
     codigoLocalEstoqueQ2p: corr.codigoLocalEstoqueQ2p,
     codigoProdutoAcxe: correlacao.codigoProdutoAcxe,
     codigoProdutoQ2p: correlacao.codigoProdutoQ2p,
     quantidadeKg: qtdFisicaKg,
-    valorUnitario: omieData.vUnCom,
+    valorUnitarioAcxe: omieData.vUnCom,
+    valorUnitarioQ2p: calcularValorUnitarioQ2p(omieData.vNF, qtdNfKg),
     notaFiscal: input.nf,
     observacaoSufixo: 'sem divergencias',
   });
@@ -400,21 +404,31 @@ async function processarRecebimentoComDivergencia(args: {
  * recebimento sem divergencia quanto em aprovacao de divergencia. Se ACXE sucesso
  * mas Q2P falhar, dispara ALERTA no log (ajuste ACXE ficou "no ar" no ERP — requer
  * intervencao manual). Nao toca no BD — o caller decide como persistir.
+ *
+ * Fiel ao legado PHP (NotaFiscalService::transfereEstoqueSemDivergenciaService +
+ * Q2PRecebimentoIncluirAjusteEstoqueSemDivergenciaService):
+ *  - ACXE: transferencia (TRF/TRF) do estoque em transito (origem) para o destino
+ *    escolhido pelo usuario, com valor unitario = vUnCom da NF.
+ *  - Q2P: entrada inicial (ENT/INI) no local correlato, com valor unitario "total"
+ *    = ceil((vNF / qtdNfKg) * 1.145 * 100) / 100 (markup interno de 14.5%).
  */
 export async function executarAjusteOmieDual(args: {
-  codigoLocalEstoqueAcxe: number;
+  codigoLocalEstoqueAcxeOrigem: string;
+  codigoLocalEstoqueAcxeDestino: number;
   codigoLocalEstoqueQ2p: number;
   codigoProdutoAcxe: number;
   codigoProdutoQ2p: number;
   quantidadeKg: number;
-  valorUnitario: number; // USD por unidade OMIE (vUnCom)
+  valorUnitarioAcxe: number;
+  valorUnitarioQ2p: number;
   notaFiscal: string;
   observacaoSufixo: string;
 }): Promise<{ idACXE: { idMovest: string; idAjuste: string }; idQ2P: { idMovest: string; idAjuste: string } }> {
   let idACXE: { idMovest: string; idAjuste: string };
   try {
     const acxeRes = await incluirAjusteEstoque('acxe', {
-      codigoLocalEstoque: String(args.codigoLocalEstoqueAcxe),
+      codigoLocalEstoque: args.codigoLocalEstoqueAcxeOrigem,
+      codigoLocalEstoqueDestino: String(args.codigoLocalEstoqueAcxeDestino),
       idProduto: args.codigoProdutoAcxe,
       dataAtual: formatarDataBR(new Date()),
       quantidade: args.quantidadeKg,
@@ -422,8 +436,7 @@ export async function executarAjusteOmieDual(args: {
       origem: 'AJU',
       tipo: 'TRF',
       motivo: 'TRF',
-      valor: args.valorUnitario,
-      codigoLocalEstoqueDestino: String(args.codigoLocalEstoqueAcxe),
+      valor: args.valorUnitarioAcxe,
     });
     idACXE = { idMovest: acxeRes.idMovest, idAjuste: acxeRes.idAjuste };
   } catch (err) {
@@ -440,7 +453,7 @@ export async function executarAjusteOmieDual(args: {
       origem: 'AJU',
       tipo: 'ENT',
       motivo: 'INI',
-      valor: args.valorUnitario,
+      valor: args.valorUnitarioQ2p,
     });
     return { idACXE, idQ2P: { idMovest: q2pRes.idMovest, idAjuste: q2pRes.idAjuste } };
   } catch (err) {
@@ -452,6 +465,17 @@ export async function executarAjusteOmieDual(args: {
   }
 }
 
+/**
+ * Calcula o valor unitario "total" usado nos ajustes Q2P (legado:
+ * `$vUnCom_Total = ceil(($vNF / $qtd_recebida_api * 1.145) * 100) / 100`).
+ * Equivale ao unitario USD/kg da NF acrescido de markup interno de 14,5%
+ * (impostos/serviços) arredondado para cima a 2 casas.
+ */
+export function calcularValorUnitarioQ2p(vNF: number, qtdNfKg: number): number {
+  if (!Number.isFinite(vNF) || !Number.isFinite(qtdNfKg) || qtdNfKg <= 0) return 0;
+  return Math.ceil((vNF / qtdNfKg) * 1.145 * 100) / 100;
+}
+
 function formatarDataBR(d: Date): string {
   const dd = String(d.getDate()).padStart(2, '0');
   const mm = String(d.getMonth() + 1).padStart(2, '0');
@@ -459,7 +483,7 @@ function formatarDataBR(d: Date): string {
   return `${dd}/${mm}/${yyyy}`;
 }
 
-function normalizarUnidade(raw: string): UnidadeMedida {
+export function normalizarUnidade(raw: string): UnidadeMedida {
   const u = raw.trim().toLowerCase();
   if (u === 't' || u === 'ton' || u === 'tonelada') return 't';
   if (u === 'kg' || u === 'quilo') return 'kg';

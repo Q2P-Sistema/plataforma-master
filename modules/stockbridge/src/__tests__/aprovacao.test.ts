@@ -142,11 +142,17 @@ describe('aprovacao.service#aprovar', () => {
       quantidadeRecebidaKg: '24500', tipoDivergencia: 'faltando', lancadoPor: 'op-1',
     };
     const loteRow = {
-      id: 'lote-1', codigo: 'L001', notaFiscal: '123',
+      id: 'lote-1', codigo: 'L001', notaFiscal: '123', cnpj: 'Acxe Matriz',
       produtoCodigoAcxe: 1001, produtoCodigoQ2p: 2001,
       localidadeId: 'loc-1', quantidadeFisicaKg: '24500', custoUsdTon: '1200',
     };
     vi.mocked(getDb).mockReturnValue(criarDbComTabelas(await tabelas(aprRow, loteRow)) as never);
+    // Mock NF: 25_000 kg, vNF=30000, vUnCom=1.2 → vUnCom_Total = ceil(30000/25000 * 1.145 * 100)/100 = 1.38
+    vi.mocked(omieMod.consultarNF).mockResolvedValue({
+      nNF: 123, nCodProd: 1001, xProd: 'PP RAFIA',
+      qCom: 25_000, uCom: 'kg', vUnCom: 1.2, vNF: 30_000,
+      codigoLocalEstoque: '999', cRazao: 'FORN', dEmi: '01/04/2026',
+    } as never);
 
     const res = await aprovar({ id: 'apr-1', usuarioId: 'u1', perfilUsuario: 'gestor' });
     expect(res).toEqual({ id: 'apr-1', loteStatus: 'provisorio' });
@@ -154,10 +160,16 @@ describe('aprovacao.service#aprovar', () => {
     expect(omieMod.incluirAjusteEstoque).toHaveBeenNthCalledWith(1, 'acxe', expect.objectContaining({
       quantidade: 24500,
       tipo: 'TRF',
+      motivo: 'TRF',
+      codigoLocalEstoque: '999',
+      codigoLocalEstoqueDestino: '111',
+      valor: 1.2,
     }));
     expect(omieMod.incluirAjusteEstoque).toHaveBeenNthCalledWith(2, 'q2p', expect.objectContaining({
       quantidade: 24500,
       tipo: 'ENT',
+      motivo: 'INI',
+      valor: 1.38,
     }));
   });
 });

@@ -3,7 +3,14 @@ import { getDb, createLogger } from '@atlas/core';
 import { aprovacao, lote, movimentacao, localidadeCorrelacao } from '@atlas/db';
 import type { Perfil, TipoAprovacao } from '../types.js';
 import { NIVEL_APROVACAO_POR_SUBTIPO } from '../types.js';
-import { executarAjusteOmieDual } from './recebimento.service.js';
+import {
+  executarAjusteOmieDual,
+  calcularValorUnitarioQ2p,
+  normalizarUnidade,
+} from './recebimento.service.js';
+import { consultarNF } from '@atlas/integration-omie';
+import Decimal from 'decimal.js';
+import { converterParaKg } from './motor.service.js';
 import {
   enviarNotificacaoRejeicaoOperador,
   enviarNotificacaoAprovacaoOperador,
@@ -162,16 +169,28 @@ export async function aprovar(input: AprovarInput): Promise<{ id: string; loteSt
       throw new Error(`Localidade do lote ${loteRow.codigo} sem correlacao ACXE/Q2P completa`);
     }
     const qtdAprovadaKg = Number(apPre.quantidadeRecebidaKg ?? loteRow.quantidadeFisicaKg);
-    const valorUnit = Number(loteRow.custoUsdTon ?? 0);
+    if (!loteRow.notaFiscal) {
+      throw new Error(`Lote ${loteRow.codigo} sem notaFiscal — nao e possivel re-consultar OMIE para aprovar divergencia`);
+    }
+    // Re-consulta a NF para obter o local de estoque de origem (transito) e o vNF
+    // total — fiel ao legado, ACXE = TRF/TRF e Q2P = ENT/INI com valor unitario
+    // calculado a partir do total da NF.
+    const cnpjLote: 'acxe' | 'q2p' = loteRow.cnpj?.toLowerCase().startsWith('acxe') ? 'acxe' : 'q2p';
+    const omieData = await consultarNF(cnpjLote, Number(loteRow.notaFiscal));
+    const qtdNfKg = Number(
+      new Decimal(converterParaKg(omieData.qCom, normalizarUnidade(omieData.uCom))).toFixed(3),
+    );
 
     omieIds = await executarAjusteOmieDual({
-      codigoLocalEstoqueAcxe: corr.codigoLocalEstoqueAcxe,
+      codigoLocalEstoqueAcxeOrigem: omieData.codigoLocalEstoque,
+      codigoLocalEstoqueAcxeDestino: corr.codigoLocalEstoqueAcxe,
       codigoLocalEstoqueQ2p: corr.codigoLocalEstoqueQ2p,
       codigoProdutoAcxe: Number(loteRow.produtoCodigoAcxe),
       codigoProdutoQ2p: Number(loteRow.produtoCodigoQ2p),
       quantidadeKg: qtdAprovadaKg,
-      valorUnitario: valorUnit,
-      notaFiscal: loteRow.notaFiscal ?? apPre.loteId,
+      valorUnitarioAcxe: omieData.vUnCom,
+      valorUnitarioQ2p: calcularValorUnitarioQ2p(omieData.vNF, qtdNfKg),
+      notaFiscal: loteRow.notaFiscal,
       observacaoSufixo: `com divergencia aprovada por gestor (${apPre.tipoDivergencia ?? 'n/a'})`,
     });
   }
