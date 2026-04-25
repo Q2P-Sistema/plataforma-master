@@ -25,7 +25,7 @@ export function ModalDivergencias({ onClose }: Props) {
         <div className="flex justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-atlas-ink text-white rounded text-sm font-medium"
+            className="px-4 py-2 bg-atlas-btn-bg text-atlas-btn-text rounded text-sm font-medium"
           >
             Entendi
           </button>

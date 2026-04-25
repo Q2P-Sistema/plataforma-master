@@ -157,7 +157,7 @@ export function ConfigProdutosPage() {
                       <>
                         <button
                           onClick={() => salvarMut.mutate(p.produtoCodigoAcxe)}
-                          className="px-2 py-1 bg-atlas-ink text-white rounded text-xs"
+                          className="px-2 py-1 bg-atlas-btn-bg text-atlas-btn-text rounded text-xs"
                         >
                           Salvar
                         </button>

@@ -161,7 +161,7 @@ export function SaidaManualPage() {
           <button
             onClick={() => mut.mutate()}
             disabled={!podeEnviar || mut.isPending}
-            className={`px-5 py-2 rounded text-sm font-medium ${podeEnviar ? 'bg-atlas-ink text-white hover:opacity-90' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
+            className={`px-5 py-2 rounded text-sm font-medium ${podeEnviar ? 'bg-atlas-btn-bg text-atlas-btn-text hover:opacity-90' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
           >
             {mut.isPending ? 'Enviando...' : 'Registrar saida (aguarda aprovacao)'}
           </button>

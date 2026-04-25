@@ -100,7 +100,7 @@ export function ConferenciaModal({ item, onClose, onSucesso }: Props) {
           <p className="text-sm text-atlas-muted mb-4">{sucesso.mensagem}</p>
           <button
             onClick={() => { onClose(); onSucesso(); }}
-            className="px-5 py-2 bg-atlas-ink text-white rounded text-sm font-medium"
+            className="px-5 py-2 bg-atlas-btn-bg text-atlas-btn-text rounded text-sm font-medium"
           >
             Fechar
           </button>
@@ -205,7 +205,7 @@ export function ConferenciaModal({ item, onClose, onSucesso }: Props) {
           <button
             onClick={() => recebimentoMut.mutate()}
             disabled={!podeConfirmar || recebimentoMut.isPending}
-            className={`px-5 py-2 rounded text-sm font-medium ${podeConfirmar && !recebimentoMut.isPending ? 'bg-atlas-ink text-white hover:opacity-90' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
+            className={`px-5 py-2 rounded text-sm font-medium ${podeConfirmar && !recebimentoMut.isPending ? 'bg-atlas-btn-bg text-atlas-btn-text hover:opacity-90' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
           >
             {recebimentoMut.isPending ? 'Enviando...' : temDivergencia ? 'Registrar com divergencia' : 'Confirmar recebimento'}
           </button>

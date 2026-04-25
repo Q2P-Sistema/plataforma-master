@@ -91,7 +91,7 @@ export function FilaOmiePage() {
             <option value="q2p">Q2P</option>
           </select>
         </div>
-        <button type="submit" className="px-5 py-2 bg-atlas-ink text-white rounded text-sm font-medium hover:opacity-90">
+        <button type="submit" className="px-5 py-2 bg-atlas-btn-bg text-atlas-btn-text rounded text-sm font-medium hover:opacity-90">
           Buscar
         </button>
       </form>
@@ -137,7 +137,7 @@ export function FilaOmiePage() {
               </div>
               <button
                 onClick={() => setSelecionado(item)}
-                className="px-4 py-2 bg-atlas-ink text-white rounded text-sm font-medium hover:opacity-90"
+                className="px-4 py-2 bg-atlas-btn-bg text-atlas-btn-text rounded text-sm font-medium hover:opacity-90"
               >
                 Conferir →
               </button>

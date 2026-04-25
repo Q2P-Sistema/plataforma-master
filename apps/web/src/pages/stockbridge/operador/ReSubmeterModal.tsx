@@ -87,7 +87,7 @@ export function ReSubmeterModal({ aprovacaoId, loteCodigo, quantidadeOriginalKg,
           <button
             onClick={() => resubmeterMut.mutate()}
             disabled={!podeEnviar || resubmeterMut.isPending}
-            className={`px-5 py-2 rounded text-sm font-medium ${podeEnviar ? 'bg-atlas-ink text-white' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
+            className={`px-5 py-2 rounded text-sm font-medium ${podeEnviar ? 'bg-atlas-btn-bg text-atlas-btn-text' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
           >
             {resubmeterMut.isPending ? 'Enviando...' : 'Re-submeter para aprovacao'}
           </button>

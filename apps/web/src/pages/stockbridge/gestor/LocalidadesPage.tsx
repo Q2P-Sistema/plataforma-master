@@ -105,7 +105,7 @@ export function LocalidadesPage() {
             Armazens proprios, 3PLs, portos secos e virtuais (transito/ajuste).
           </p>
         </div>
-        <button onClick={abrirNova} className="px-4 py-2 bg-atlas-ink text-white rounded text-sm font-medium">
+        <button onClick={abrirNova} className="px-4 py-2 bg-atlas-btn-bg text-atlas-btn-text rounded text-sm font-medium">
           + Nova
         </button>
       </div>
@@ -220,7 +220,7 @@ export function LocalidadesPage() {
               <button
                 onClick={() => salvarMut.mutate()}
                 disabled={!form.codigo.trim() || !form.nome.trim() || salvarMut.isPending}
-                className={`px-5 py-2 rounded text-sm font-medium ${form.codigo.trim() && form.nome.trim() ? 'bg-atlas-ink text-white' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
+                className={`px-5 py-2 rounded text-sm font-medium ${form.codigo.trim() && form.nome.trim() ? 'bg-atlas-btn-bg text-atlas-btn-text' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
               >
                 {salvarMut.isPending ? 'Salvando...' : editando ? 'Salvar' : 'Criar'}
               </button>

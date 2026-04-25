@@ -81,7 +81,7 @@ export function AvancarEstagioModal({ lote, onClose, onSucesso }: Props) {
           o próximo passo é recebimento físico no armazém (ver "Fila OMIE" no operador).
         </p>
         <div className="flex justify-end mt-4">
-          <button onClick={onClose} className="px-4 py-2 bg-atlas-ink text-white rounded text-sm">OK</button>
+          <button onClick={onClose} className="px-4 py-2 bg-atlas-btn-bg text-atlas-btn-text rounded text-sm">OK</button>
         </div>
       </Modal>
     );
@@ -152,7 +152,7 @@ export function AvancarEstagioModal({ lote, onClose, onSucesso }: Props) {
           <button
             onClick={() => avancarMut.mutate()}
             disabled={!podeEnviar || avancarMut.isPending}
-            className={`px-5 py-2 rounded text-sm font-medium ${podeEnviar ? 'bg-atlas-ink text-white hover:opacity-90' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
+            className={`px-5 py-2 rounded text-sm font-medium ${podeEnviar ? 'bg-atlas-btn-bg text-atlas-btn-text hover:opacity-90' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
           >
             {avancarMut.isPending ? 'Enviando...' : `Avançar para ${destino}`}
           </button>

@@ -119,7 +119,7 @@ export function TransitoPage() {
                       {col.key !== 'transito_interno' && col.key !== 'reservado' && (
                         <button
                           onClick={() => setAvancando(l)}
-                          className="w-full mt-1 px-2 py-1 bg-atlas-ink text-white rounded text-[11px] font-medium hover:opacity-90"
+                          className="w-full mt-1 px-2 py-1 bg-atlas-btn-bg text-atlas-btn-text rounded text-[11px] font-medium hover:opacity-90"
                         >
                           Avançar →
                         </button>

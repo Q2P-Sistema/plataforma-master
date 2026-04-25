@@ -8,6 +8,11 @@
   --atlas-text: #1a1a2e;
   --atlas-muted: #6b7280;
   --atlas-border: #d6d0c4;
+
+  /* Button primary — azul ACXE em ambos os temas (destaca de qualquer fundo) */
+  --atlas-btn-bg: #0077cc;
+  --atlas-btn-bg-hover: #005fa3;
+  --atlas-btn-text: #FFFFFF;
 }
 
 .dark {
@@ -16,6 +21,11 @@
   --atlas-text: #e4e7e0;
   --atlas-muted: #9ca3af;
   --atlas-border: #2d3748;
+
+  /* Dark mode: tom mais claro do mesmo azul para destacar do card escuro */
+  --atlas-btn-bg: #2196f3;
+  --atlas-btn-bg-hover: #1976d2;
+  --atlas-btn-text: #FFFFFF;
 }
 
 body {
