@@ -1,6 +1,6 @@
-import { eq, and, desc, inArray, sql } from 'drizzle-orm';
+import { eq, and, desc, inArray } from 'drizzle-orm';
 import { getDb, createLogger } from '@atlas/core';
-import { aprovacao, lote, movimentacao, localidadeCorrelacao } from '@atlas/db';
+import { aprovacao, lote, movimentacao, localidadeCorrelacao, users } from '@atlas/db';
 import type { Perfil, TipoAprovacao } from '../types.js';
 import { NIVEL_APROVACAO_POR_SUBTIPO } from '../types.js';
 import {
@@ -92,10 +92,11 @@ export async function listarPendencias(perfil: Perfil): Promise<PendenciaItem[]>
   const userIds = [...new Set(rows.map((r) => r.lancadoPor))];
   const userMap = new Map<string, string>();
   if (userIds.length > 0) {
-    const userRows = await db.execute<{ id: string; name: string }>(
-      sql`SELECT id, name FROM atlas.users WHERE id = ANY(${userIds})`,
-    );
-    for (const u of userRows.rows) userMap.set(String(u.id), String(u.name));
+    const userRows = await db
+      .select({ id: users.id, name: users.name })
+      .from(users)
+      .where(inArray(users.id, userIds));
+    for (const u of userRows) userMap.set(u.id, u.name);
   }
 
   return rows.map((r) => {
