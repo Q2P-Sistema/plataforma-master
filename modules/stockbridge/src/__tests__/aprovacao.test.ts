@@ -141,21 +141,20 @@ describe('aprovacao.service#aprovar', () => {
       precisaNivel: 'gestor', tipoAprovacao: 'recebimento_divergencia',
       quantidadeRecebidaKg: '24500', tipoDivergencia: 'faltando', lancadoPor: 'op-1',
     };
+    // Lote com dados da NF persistidos no momento do recebimento
+    // (vNF=30000, qtdNf=25000kg, vUnCom=1.2 → valor unit Q2P = ceil(30000/25000*1.145*100)/100 = 1.38)
     const loteRow = {
       id: 'lote-1', codigo: 'L001', notaFiscal: '123', cnpj: 'Acxe Matriz',
       produtoCodigoAcxe: 1001, produtoCodigoQ2p: 2001,
-      localidadeId: 'loc-1', quantidadeFisicaKg: '24500', custoUsdTon: '1200',
+      localidadeId: 'loc-1', quantidadeFisicaKg: '24500',
+      quantidadeFiscalKg: '25000', custoUsdTon: '1.20',
+      valorTotalNfUsd: '30000.00', codigoLocalEstoqueOrigemAcxe: '999',
     };
     vi.mocked(getDb).mockReturnValue(criarDbComTabelas(await tabelas(aprRow, loteRow)) as never);
-    // Mock NF: 25_000 kg, vNF=30000, vUnCom=1.2 → vUnCom_Total = ceil(30000/25000 * 1.145 * 100)/100 = 1.38
-    vi.mocked(omieMod.consultarNF).mockResolvedValue({
-      nNF: 123, nCodProd: 1001, xProd: 'PP RAFIA',
-      qCom: 25_000, uCom: 'kg', vUnCom: 1.2, vNF: 30_000,
-      codigoLocalEstoque: '999', cRazao: 'FORN', dEmi: '01/04/2026',
-    } as never);
 
     const res = await aprovar({ id: 'apr-1', usuarioId: 'u1', perfilUsuario: 'gestor' });
     expect(res).toEqual({ id: 'apr-1', loteStatus: 'provisorio' });
+    expect(omieMod.consultarNF).not.toHaveBeenCalled(); // usa lote persistido
     expect(omieMod.incluirAjusteEstoque).toHaveBeenCalledTimes(2);
     expect(omieMod.incluirAjusteEstoque).toHaveBeenNthCalledWith(1, 'acxe', expect.objectContaining({
       quantidade: 24500,

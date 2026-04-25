@@ -6,11 +6,7 @@ import { NIVEL_APROVACAO_POR_SUBTIPO } from '../types.js';
 import {
   executarAjusteOmieDual,
   calcularValorUnitarioQ2p,
-  normalizarUnidade,
 } from './recebimento.service.js';
-import { consultarNF } from '@atlas/integration-omie';
-import Decimal from 'decimal.js';
-import { converterParaKg } from './motor.service.js';
 import {
   enviarNotificacaoRejeicaoOperador,
   enviarNotificacaoAprovacaoOperador,
@@ -170,26 +166,27 @@ export async function aprovar(input: AprovarInput): Promise<{ id: string; loteSt
     }
     const qtdAprovadaKg = Number(apPre.quantidadeRecebidaKg ?? loteRow.quantidadeFisicaKg);
     if (!loteRow.notaFiscal) {
-      throw new Error(`Lote ${loteRow.codigo} sem notaFiscal — nao e possivel re-consultar OMIE para aprovar divergencia`);
+      throw new Error(`Lote ${loteRow.codigo} sem notaFiscal — nao e possivel ajustar OMIE`);
     }
-    // Re-consulta a NF para obter o local de estoque de origem (transito) e o vNF
-    // total — fiel ao legado, ACXE = TRF/TRF e Q2P = ENT/INI com valor unitario
-    // calculado a partir do total da NF.
-    const cnpjLote: 'acxe' | 'q2p' = loteRow.cnpj?.toLowerCase().startsWith('acxe') ? 'acxe' : 'q2p';
-    const omieData = await consultarNF(cnpjLote, Number(loteRow.notaFiscal));
-    const qtdNfKg = Number(
-      new Decimal(converterParaKg(omieData.qCom, normalizarUnidade(omieData.uCom))).toFixed(3),
-    );
+    if (!loteRow.codigoLocalEstoqueOrigemAcxe || !loteRow.valorTotalNfUsd || !loteRow.custoUsdTon) {
+      throw new Error(
+        `Lote ${loteRow.codigo} sem dados da NF persistidos (origem ACXE / vNF / vUnCom). ` +
+          'Lote criado em versao anterior — re-consulte OMIE manualmente ou re-submeta o recebimento.',
+      );
+    }
+    const qtdNfKg = Number(loteRow.quantidadeFiscalKg);
+    const vNF = Number(loteRow.valorTotalNfUsd);
+    const vUnCom = Number(loteRow.custoUsdTon);
 
     omieIds = await executarAjusteOmieDual({
-      codigoLocalEstoqueAcxeOrigem: omieData.codigoLocalEstoque,
+      codigoLocalEstoqueAcxeOrigem: loteRow.codigoLocalEstoqueOrigemAcxe,
       codigoLocalEstoqueAcxeDestino: corr.codigoLocalEstoqueAcxe,
       codigoLocalEstoqueQ2p: corr.codigoLocalEstoqueQ2p,
       codigoProdutoAcxe: Number(loteRow.produtoCodigoAcxe),
       codigoProdutoQ2p: Number(loteRow.produtoCodigoQ2p),
       quantidadeKg: qtdAprovadaKg,
-      valorUnitarioAcxe: omieData.vUnCom,
-      valorUnitarioQ2p: calcularValorUnitarioQ2p(omieData.vNF, qtdNfKg),
+      valorUnitarioAcxe: vUnCom,
+      valorUnitarioQ2p: calcularValorUnitarioQ2p(vNF, qtdNfKg),
       notaFiscal: loteRow.notaFiscal,
       observacaoSufixo: `com divergencia aprovada por gestor (${apPre.tipoDivergencia ?? 'n/a'})`,
     });
