@@ -4,6 +4,7 @@ import {
   fmtQtdUnidade,
   calcularCobertura,
   classificarCriticidade,
+  normalizarNumeroNf,
 } from '../services/motor.service.js';
 
 describe('motor.service#converterParaKg', () => {
@@ -104,5 +105,32 @@ describe('motor.service#classificarCriticidade', () => {
   it('sem lead time assume default 60 dias', () => {
     expect(classificarCriticidade(29, null, 29, 1)).toBe('critico');
     expect(classificarCriticidade(100, null, 100, 1)).toBe('ok');
+  });
+});
+
+describe('motor.service#normalizarNumeroNf', () => {
+  it('numerica curta vira zero-padded 8 digitos', () => {
+    expect(normalizarNumeroNf('300')).toBe('00000300');
+    expect(normalizarNumeroNf('1')).toBe('00000001');
+    expect(normalizarNumeroNf('12345678')).toBe('12345678');
+  });
+
+  it('numerica que ja vem padded fica igual', () => {
+    expect(normalizarNumeroNf('00000300')).toBe('00000300');
+  });
+
+  it('apara espacos antes de normalizar', () => {
+    expect(normalizarNumeroNf('  300  ')).toBe('00000300');
+  });
+
+  it('alfanumerica preserva o formato original', () => {
+    expect(normalizarNumeroNf('IMP-2026-0301')).toBe('IMP-2026-0301');
+    expect(normalizarNumeroNf('DEV/123')).toBe('DEV/123');
+  });
+
+  it('formato invalido (vazio, nao-numerico puro) retorna como veio', () => {
+    expect(normalizarNumeroNf('')).toBe('');
+    expect(normalizarNumeroNf('300abc')).toBe('300abc');
+    expect(normalizarNumeroNf('-300')).toBe('-300');
   });
 });

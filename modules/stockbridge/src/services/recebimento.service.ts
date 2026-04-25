@@ -9,7 +9,7 @@ import {
   type ConsultarNFResponse,
 } from '@atlas/integration-omie';
 import { getCorrelacao, CorrelacaoNaoEncontradaError } from './correlacao.service.js';
-import { converterParaKg } from './motor.service.js';
+import { converterParaKg, normalizarNumeroNf } from './motor.service.js';
 import {
   enviarAlertaProdutoSemCorrelato,
   enviarAlertaAprovacaoPendente,
@@ -65,14 +65,17 @@ export async function getFilaOmie(params: {
     if (!Number.isFinite(numero) || numero <= 0) {
       return [];
     }
+    const nfNormalizada = normalizarNumeroNf(params.nf);
 
     // Idempotencia: ja processada?
+    // OMIE retorna nNF zero-padded (ex: "00000300") e e nesse formato que gravamos.
+    // Operador tipicamente digita "300" — normalizamos antes de comparar.
     const ja = await db
       .select({ id: movimentacao.id })
       .from(movimentacao)
       .where(
         and(
-          eq(movimentacao.notaFiscal, params.nf),
+          eq(movimentacao.notaFiscal, nfNormalizada),
           eq(movimentacao.tipoMovimento, 'entrada_nf'),
           eq(movimentacao.ativo, true),
         ),
@@ -175,6 +178,12 @@ export async function processarRecebimento(
   input: ProcessarRecebimentoInput,
 ): Promise<ProcessarRecebimentoResult> {
   const db = getDb();
+  // Normaliza para o formato OMIE (zero-padded 8 digitos para NFs numericas).
+  // Sem isso, operador digitando "300" enquanto OMIE retorna "00000300" passa
+  // pela checagem de idempotencia mesmo com o registro ja gravado no DB.
+  // Reescreve input.nf para que toda a logica downstream (insert, OMIE,
+  // notificacao) use a forma canonica.
+  input = { ...input, nf: normalizarNumeroNf(input.nf) };
 
   // 1. Idempotencia
   const ja = await db
