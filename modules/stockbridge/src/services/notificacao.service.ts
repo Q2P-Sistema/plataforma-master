@@ -140,6 +140,8 @@ export async function enviarNotificacaoRejeicaoOperador(args: {
     return;
   }
   const subject = `StockBridge — Seu lancamento foi rejeitado`;
+  const config = getConfig();
+  const linkResubmeter = `${config.APP_URL}/stockbridge/recebimento#rejeicao=${args.aprovacaoId}`;
   const html = `
     <h2 style="color: #dc3545;">Lancamento Rejeitado</h2>
     <p>O gestor/diretor rejeitou um lancamento que voce fez no StockBridge.</p>
@@ -147,13 +149,19 @@ export async function enviarNotificacaoRejeicaoOperador(args: {
     <blockquote style="border-left:3px solid #dc3545;padding-left:12px;color:#555;margin:8px 0;">
       "${args.motivo}"
     </blockquote>
-    <p>Voce pode corrigir os dados e re-submeter atraves do painel "Aprovacoes" no StockBridge (modal "Re-submeter").</p>
+    <p>Corrija os dados e re-submeta para nova aprovacao:</p>
+    <p style="margin:16px 0;">
+      <a href="${linkResubmeter}"
+         style="display:inline-block;padding:10px 20px;background:#0077cc;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;font-size:14px;">
+        Re-submeter agora →
+      </a>
+    </p>
+    <p style="color:#888;font-size:11px;">Ou abra a tela de Recebimento no StockBridge e procure pela secao "Lancamentos rejeitados".</p>
     <p style="color:#888;font-size:11px;">Aprovacao id: ${args.aprovacaoId} · Lote: ${args.loteId}</p>
     <p style="color:#888;font-size:11px;">Sistema Atlas — StockBridge</p>
   `;
   try {
-    const cc = getConfig().STOCKBRIDGE_ADMIN_CC_EMAIL;
-    await sendEmail({ to, cc: cc || undefined, subject, html });
+    await sendEmail({ to, cc: config.STOCKBRIDGE_ADMIN_CC_EMAIL || undefined, subject, html });
   } catch (err) {
     logger.error({ err, args }, 'Falha ao enviar email de rejeicao ao operador');
   }

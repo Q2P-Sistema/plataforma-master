@@ -35,6 +35,9 @@ const envSchema = z.object({
   // CC opcional em todos os emails operacionais do StockBridge (rejeicao,
   // aprovacao, alertas). Usar para que o admin/responsavel monitore por copia.
   STOCKBRIDGE_ADMIN_CC_EMAIL: z.string().email().optional(),
+  // URL base do frontend (sem barra final) — usada para montar links em emails
+  // (ex: "Re-submeter agora" no email de rejeicao). Default cobre dev local.
+  APP_URL: z.string().url().default('http://localhost:5173'),
   API_PORT: z.coerce.number().default(3005),
   WEB_PORT: z.coerce.number().default(5173),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),

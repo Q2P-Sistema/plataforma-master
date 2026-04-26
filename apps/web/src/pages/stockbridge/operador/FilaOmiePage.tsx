@@ -1,7 +1,8 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../../../stores/auth.store.js';
 import { ConferenciaModal } from './ConferenciaModal.js';
+import { ReSubmeterModal } from './ReSubmeterModal.js';
 
 interface FilaItem {
   nf: string;
@@ -14,6 +15,17 @@ interface FilaItem {
   localidadeCodigo: string;
   dtEmissao: string;
   custoBrl: number;
+}
+
+interface MinhaRejeicao {
+  id: string;
+  loteId: string;
+  loteCodigo: string;
+  motivoRejeicao: string;
+  quantidadeRecebidaKg: number;
+  produtoCodigoAcxe: number;
+  fornecedor: string;
+  rejeitadoEm: string;
 }
 
 const TIPO_LABEL: Record<string, { label: string; color: string }> = {
@@ -42,6 +54,31 @@ export function FilaOmiePage() {
   const [buscaCnpj, setBuscaCnpj] = useState<'acxe' | 'q2p'>('acxe');
   const [queryKey, setQueryKey] = useState<{ nf?: string; cnpj?: string }>({});
   const [selecionado, setSelecionado] = useState<FilaItem | null>(null);
+  const [resubmitendo, setResubmitendo] = useState<MinhaRejeicao | null>(null);
+
+  // Lista de lancamentos rejeitados que o operador pode re-submeter
+  const { data: rejeicoes = [], refetch: refetchRejeicoes } = useQuery<MinhaRejeicao[]>({
+    queryKey: ['stockbridge', 'minhas-rejeicoes'],
+    queryFn: async () => {
+      const body = await apiFetch('/api/v1/stockbridge/aprovacoes/minhas-rejeicoes');
+      return body.data as MinhaRejeicao[];
+    },
+  });
+
+  // Auto-abrir modal de re-submeter quando o email manda o usuario para
+  // /stockbridge/recebimento#rejeicao=<id>. Roda quando rejeicoes carregam.
+  useEffect(() => {
+    const hash = window.location.hash;
+    const match = hash.match(/^#rejeicao=([0-9a-f-]{36})$/i);
+    if (match && rejeicoes.length > 0 && !resubmitendo) {
+      const target = rejeicoes.find((r) => r.id === match[1]);
+      if (target) {
+        setResubmitendo(target);
+        // Limpa o hash para nao reabrir em re-renders
+        history.replaceState(null, '', window.location.pathname);
+      }
+    }
+  }, [rejeicoes, resubmitendo]);
 
   const { data: itens = [], isLoading, error } = useQuery<FilaItem[]>({
     queryKey: ['stockbridge', 'fila', queryKey],
@@ -163,6 +200,59 @@ export function FilaOmiePage() {
             setQueryKey({});
           }}
         />
+      )}
+
+      {resubmitendo && (
+        <ReSubmeterModal
+          aprovacaoId={resubmitendo.id}
+          loteCodigo={resubmitendo.loteCodigo}
+          quantidadeOriginalKg={resubmitendo.quantidadeRecebidaKg}
+          motivoRejeicao={resubmitendo.motivoRejeicao}
+          onClose={() => setResubmitendo(null)}
+          onSucesso={() => {
+            setResubmitendo(null);
+            refetchRejeicoes();
+          }}
+        />
+      )}
+
+      {rejeicoes.length > 0 && (
+        <div className="mt-8">
+          <h2 className="text-lg font-serif text-atlas-ink mb-2">
+            Lançamentos rejeitados ({rejeicoes.length})
+          </h2>
+          <p className="text-xs text-atlas-muted mb-3">
+            Lançamentos que foram rejeitados pelo gestor. Corrija e re-submeta para nova aprovação.
+          </p>
+          <div className="flex flex-col gap-2">
+            {rejeicoes.map((r) => (
+              <div
+                key={r.id}
+                className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 flex items-center gap-3"
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-baseline gap-2 mb-0.5">
+                    <span className="font-serif text-base text-atlas-ink">{r.loteCodigo}</span>
+                    <span className="text-xs text-atlas-muted">cod. {r.produtoCodigoAcxe} · {r.fornecedor}</span>
+                  </div>
+                  <div className="text-xs text-red-700 dark:text-red-300 italic truncate">
+                    "{r.motivoRejeicao || 'sem motivo registrado'}"
+                  </div>
+                </div>
+                <div className="text-right text-xs text-atlas-muted whitespace-nowrap">
+                  {r.quantidadeRecebidaKg.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} kg<br />
+                  rejeitado em {new Date(r.rejeitadoEm).toLocaleDateString('pt-BR')}
+                </div>
+                <button
+                  onClick={() => setResubmitendo(r)}
+                  className="px-3 py-1.5 bg-atlas-btn-bg text-atlas-btn-text rounded text-xs font-medium hover:opacity-90 whitespace-nowrap"
+                >
+                  Re-submeter →
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );

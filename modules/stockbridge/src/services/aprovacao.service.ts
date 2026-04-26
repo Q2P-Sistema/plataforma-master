@@ -123,6 +123,65 @@ export async function listarPendencias(perfil: Perfil): Promise<PendenciaItem[]>
   });
 }
 
+export interface MinhaRejeicaoItem {
+  id: string;
+  loteId: string;
+  loteCodigo: string;
+  tipoAprovacao: TipoAprovacao;
+  motivoRejeicao: string;
+  quantidadeRecebidaKg: number;
+  produtoCodigoAcxe: number;
+  fornecedor: string;
+  lancadoEm: string;
+  rejeitadoEm: string;
+}
+
+/**
+ * Lista as aprovacoes rejeitadas que o operador (`userId`) lancou e que ele
+ * tem direito de re-submeter. Apenas com lote ativo (nao re-submetido com sucesso).
+ * Ordenado por mais recente primeiro.
+ */
+export async function listarMinhasRejeicoes(userId: string): Promise<MinhaRejeicaoItem[]> {
+  const db = getDb();
+  const rows = await db
+    .select({
+      id: aprovacao.id,
+      loteId: aprovacao.loteId,
+      tipoAprovacao: aprovacao.tipoAprovacao,
+      quantidadeRecebidaKg: aprovacao.quantidadeRecebidaKg,
+      rejeicaoMotivo: aprovacao.rejeicaoMotivo,
+      lancadoEm: aprovacao.lancadoEm,
+      aprovadoEm: aprovacao.aprovadoEm,
+      loteCodigo: lote.codigo,
+      produtoCodigoAcxe: lote.produtoCodigoAcxe,
+      fornecedor: lote.fornecedorNome,
+      loteAtivo: lote.ativo,
+    })
+    .from(aprovacao)
+    .innerJoin(lote, eq(lote.id, aprovacao.loteId))
+    .where(
+      and(
+        eq(aprovacao.status, 'rejeitada'),
+        eq(aprovacao.lancadoPor, userId),
+        eq(lote.ativo, true),
+      ),
+    )
+    .orderBy(desc(aprovacao.aprovadoEm));
+
+  return rows.map((r) => ({
+    id: r.id,
+    loteId: r.loteId,
+    loteCodigo: r.loteCodigo,
+    tipoAprovacao: r.tipoAprovacao,
+    motivoRejeicao: r.rejeicaoMotivo ?? '',
+    quantidadeRecebidaKg: r.quantidadeRecebidaKg != null ? Number(r.quantidadeRecebidaKg) : 0,
+    produtoCodigoAcxe: r.produtoCodigoAcxe,
+    fornecedor: r.fornecedor,
+    lancadoEm: r.lancadoEm.toISOString(),
+    rejeitadoEm: r.aprovadoEm?.toISOString() ?? r.lancadoEm.toISOString(),
+  }));
+}
+
 export interface AprovarInput {
   id: string;
   usuarioId: string;
