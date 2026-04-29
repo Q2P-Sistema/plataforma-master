@@ -24,6 +24,8 @@ function useApiFetch() {
   };
 }
 
+const GRID_COLS = 'grid-cols-[3fr_2fr_1fr_1.3fr_1fr_1fr]';
+
 export function ConfigProdutosPage() {
   const apiFetch = useApiFetch();
   const [busca, setBusca] = useState('');
@@ -58,40 +60,43 @@ export function ConfigProdutosPage() {
         className="w-full mb-4 px-3 py-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-900 rounded text-sm"
       />
 
-      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
-        <table className="w-full text-xs">
-          <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-900/95 text-atlas-muted shadow-sm">
-            <tr>
-              <th className="text-left px-3 py-2">SKU</th>
-              <th className="text-left px-3 py-2">Família OMIE</th>
-              <th className="text-left px-3 py-2">Família Atlas</th>
-              <th className="text-right px-3 py-2">Consumo (kg/dia)</th>
-              <th className="text-right px-3 py-2">Lead Time (dias)</th>
-              <th className="text-center px-3 py-2">Em métricas</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtrado.map((p) => (
-              <tr key={p.produtoCodigoAcxe} className="border-t border-slate-200 dark:border-slate-700">
-                <td className="px-3 py-2">
-                  <div className="font-medium">{p.nomeProduto}</div>
-                  <div className="text-[10px] font-mono text-atlas-muted">{p.produtoCodigoAcxe}</div>
-                </td>
-                <td className="px-3 py-2 text-atlas-muted">{p.familiaOmie ?? '—'}</td>
-                <td className="px-3 py-2 text-atlas-muted">{p.familiaAtlas ?? '—'}</td>
-                <td className="px-3 py-2 text-right">
-                  {p.consumoMedioDiarioKg != null ? p.consumoMedioDiarioKg.toFixed(2) : '—'}
-                </td>
-                <td className="px-3 py-2 text-right">{p.leadTimeDias ?? '—'}</td>
-                <td className="px-3 py-2 text-center">
-                  <span className={`text-xs px-2 py-0.5 rounded ${p.incluirEmMetricas ? 'bg-green-50 text-green-700' : 'bg-slate-100 text-slate-500'}`}>
-                    {p.incluirEmMetricas ? 'sim' : 'não'}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div
+        className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg overflow-y-auto"
+        style={{ maxHeight: 'calc(100vh - 240px)' }}
+      >
+        <div className={`sticky top-0 z-10 bg-slate-100 dark:bg-slate-900 border-b-2 border-slate-300 dark:border-slate-600 grid ${GRID_COLS} text-xs text-atlas-muted font-semibold px-3 py-2`}>
+          <div>SKU</div>
+          <div>Família OMIE</div>
+          <div>Família Atlas</div>
+          <div className="text-right">Consumo (kg/dia)</div>
+          <div className="text-right">Lead Time (dias)</div>
+          <div className="text-center">Em métricas</div>
+        </div>
+
+        <div>
+          {filtrado.map((p) => (
+            <div
+              key={p.produtoCodigoAcxe}
+              className={`grid ${GRID_COLS} text-xs border-b border-slate-100 dark:border-slate-700/60 px-3 py-2 hover:bg-slate-50/60 dark:hover:bg-slate-900/30 items-center`}
+            >
+              <div>
+                <div className="font-medium">{p.nomeProduto}</div>
+                <div className="text-[10px] font-mono text-atlas-muted">{p.produtoCodigoAcxe}</div>
+              </div>
+              <div className="text-atlas-muted">{p.familiaOmie ?? '—'}</div>
+              <div className="text-atlas-muted">{p.familiaAtlas ?? '—'}</div>
+              <div className="text-right">
+                {p.consumoMedioDiarioKg != null ? p.consumoMedioDiarioKg.toFixed(2) : '—'}
+              </div>
+              <div className="text-right">{p.leadTimeDias ?? '—'}</div>
+              <div className="text-center">
+                <span className={`text-xs px-2 py-0.5 rounded ${p.incluirEmMetricas ? 'bg-green-50 text-green-700' : 'bg-slate-100 text-slate-500'}`}>
+                  {p.incluirEmMetricas ? 'sim' : 'não'}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
