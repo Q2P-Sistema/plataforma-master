@@ -13,7 +13,7 @@ interface KPIs {
 interface Evolucao { mes: string; familia: string | null; quantidadeKg: number; valorBrl: number; }
 interface AnaliticaSku {
   codigoAcxe: number; nome: string; familia: string | null; ncm: string | null;
-  quantidadeKg: number; cmpUsdTon: number; valorBrl: number; coberturaDias: number | null; divergencias: number;
+  quantidadeKg: number; cmpBrlKg: number; valorBrl: number; coberturaDias: number | null; divergencias: number;
 }
 
 const fmtBRL = (n: number) => `R$ ${(n / 1e6).toFixed(2)} M`;
@@ -105,7 +105,7 @@ export function MetricasPage() {
           <table className="w-full text-xs">
             <thead>
               <tr className="bg-slate-50 dark:bg-slate-900/40 border-b border-slate-200 dark:border-slate-700">
-                {['SKU', 'Família', 'NCM', 'Qtd (kg)', 'CMP USD/t', 'Valor BRL', 'Cobertura', 'Div.'].map((h) => (
+                {['SKU', 'Família', 'NCM', 'Qtd (kg)', 'Custo BRL/kg', 'Valor BRL', 'Cobertura', 'Div.'].map((h) => (
                   <th key={h} className="text-left px-3 py-2 font-semibold text-atlas-muted">{h}</th>
                 ))}
               </tr>
@@ -117,7 +117,7 @@ export function MetricasPage() {
                   <td className="px-3 py-2 text-atlas-muted">{s.familia ?? '—'}</td>
                   <td className="px-3 py-2 font-mono text-[11px] text-atlas-muted">{s.ncm ?? '—'}</td>
                   <td className="px-3 py-2 text-right">{s.quantidadeKg.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</td>
-                  <td className="px-3 py-2 text-right">{s.cmpUsdTon > 0 ? s.cmpUsdTon.toFixed(0) : '—'}</td>
+                  <td className="px-3 py-2 text-right">{s.cmpBrlKg > 0 ? s.cmpBrlKg.toFixed(2) : '—'}</td>
                   <td className="px-3 py-2 text-right">{fmtBRL(s.valorBrl)}</td>
                   <td className="px-3 py-2 text-right">{s.coberturaDias != null ? `${s.coberturaDias}d` : '—'}</td>
                   <td className="px-3 py-2 text-center">

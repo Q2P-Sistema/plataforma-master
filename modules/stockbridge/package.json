@@ -17,6 +17,7 @@
     "@atlas/auth": "workspace:*",
     "@atlas/core": "workspace:*",
     "@atlas/db": "workspace:*",
+    "@atlas/integration-bcb": "workspace:*",
     "@atlas/integration-omie": "workspace:*",
     "decimal.js": "^10.4.0",
     "drizzle-orm": "^0.38.0",

@@ -25,33 +25,37 @@ export interface TabelaAnaliticaSku {
   familia: string | null;
   ncm: string | null;
   quantidadeKg: number;
-  cmpUsdTon: number;
+  cmpBrlKg: number;
   valorBrl: number;
   coberturaDias: number | null;
   divergencias: number;
 }
 
 /**
- * Calcula CMP (custo medio ponderado) em USD/tonelada para uma lista de lotes.
+ * Calcula CMP (custo medio ponderado) em BRL/kg para uma lista de lotes.
  * Pura — testavel sem DB.
- * Quantidade em kg e custo em USD/tonelada sao convertidos para ton antes da media.
+ *
+ * Antes (fix 2026-04-29): retornava "USD/tonelada" mas usava custoBrlKg, gerando
+ * unidade quebrada — agora honestamente retorna BRL/kg.
  */
 export function calcularCMP(lotes: Array<{ quantidadeFisicaKg: number; custoBrlKg: number | null }>): number {
-  let totalUsd = 0;
-  let totalTon = 0;
+  let totalBrl = 0;
+  let totalKg = 0;
   for (const l of lotes) {
     if (l.custoBrlKg != null && l.custoBrlKg > 0 && l.quantidadeFisicaKg > 0) {
-      const qtyTon = l.quantidadeFisicaKg / 1000;
-      totalUsd += qtyTon * l.custoBrlKg;
-      totalTon += qtyTon;
+      totalBrl += l.quantidadeFisicaKg * l.custoBrlKg;
+      totalKg += l.quantidadeFisicaKg;
     }
   }
-  return totalTon > 0 ? totalUsd / totalTon : 0;
+  return totalKg > 0 ? totalBrl / totalKg : 0;
 }
 
 /**
- * Soma exposicao cambial (USD) considerando apenas lotes em transito_intl
- * (unico estagio com preco USD nao liquidado em BRL).
+ * Soma exposicao em BRL considerando apenas lotes em transito_intl (estagio
+ * em que o preco ainda nao foi liquidado pela ACXE no destino).
+ *
+ * Retorna BRL: kg * (BRL/kg) = BRL. (No legado o calculo dividia kg por 1000
+ * sem ajustar o custo, gerando valor 1000x menor — fix em 2026-04-29.)
  */
 export function calcularExposicaoCambial(
   lotes: Array<{ estagioTransito: string | null; quantidadeFisicaKg: number; custoBrlKg: number | null; ativo: boolean }>,
@@ -59,29 +63,44 @@ export function calcularExposicaoCambial(
   let exposicao = 0;
   for (const l of lotes) {
     if (l.ativo && l.estagioTransito === 'transito_intl' && l.custoBrlKg != null && l.custoBrlKg > 0) {
-      exposicao += (l.quantidadeFisicaKg / 1000) * l.custoBrlKg;
+      exposicao += l.quantidadeFisicaKg * l.custoBrlKg;
     }
   }
   return exposicao;
 }
 
 /**
- * Retorna PTAX corrente (venda) via servico do hedge. Com fallback para 1.0 se
- * hedge nao disponivel (dev sem dependencia cruzada).
+ * Cache em memoria da PTAX. PTAX BCB e divulgada 1x ao dia (~13h), entao 30min
+ * de TTL e suficiente pra evitar N requests por refresh do cockpit/metricas
+ * sem ficar desatualizado. Cache zera no restart do processo (aceitavel).
+ */
+const PTAX_CACHE_TTL_MS = 30 * 60 * 1000;
+let ptaxCache: { venda: number; fetchedAt: number } | null = null;
+
+/**
+ * Retorna PTAX corrente (venda) consumindo o cliente BCB diretamente.
+ * StockBridge nao depende do modulo @atlas/hedge — usa @atlas/integration-bcb
+ * direto e cacheia em memoria. Fallback heuristico 5.0 se BCB falhar e cache vazio.
  */
 async function getPtaxCorrente(): Promise<number> {
-  try {
-    // Dynamic import para evitar dependencia dura entre modulos
-    const hedge = await import('@atlas/hedge' as string).catch(() => null);
-    if (hedge && typeof (hedge as { ptaxService?: unknown }).ptaxService === 'object') {
-      const svc = (hedge as { ptaxService: { getAtual?: () => Promise<{ venda: number }> } }).ptaxService;
-      const atual = await svc.getAtual?.();
-      if (atual && atual.venda > 0) return atual.venda;
-    }
-  } catch (err) {
-    logger.warn({ err: (err as Error).message }, 'PTAX via hedge indisponivel, usando fallback 5.0');
+  if (ptaxCache && Date.now() - ptaxCache.fetchedAt < PTAX_CACHE_TTL_MS) {
+    return ptaxCache.venda;
   }
-  return 5.0; // Fallback heuristico (dev)
+
+  try {
+    const { fetchPtaxAtual } = await import('@atlas/integration-bcb');
+    const quote = await fetchPtaxAtual();
+    if (quote.venda > 0) {
+      ptaxCache = { venda: quote.venda, fetchedAt: Date.now() };
+      return quote.venda;
+    }
+    logger.warn({ quote }, 'PTAX BCB retornou venda <= 0 — usando fallback 5.0');
+  } catch (err) {
+    logger.warn({ err: (err as Error).message }, 'fetchPtaxAtual (BCB) falhou — usando fallback 5.0');
+  }
+
+  // Em ultimo caso, devolve cache stale se existir; senao fallback heuristico.
+  return ptaxCache?.venda ?? 5.0;
 }
 
 /**
@@ -112,15 +131,18 @@ export async function getKPIs(): Promise<MetricasKPIs> {
     ativo: r.ativo,
   }));
 
-  // Valor de estoque = saldo reconciliado/provisorio (excluido transito)
+  // Valor de estoque = saldo reconciliado/provisorio (excluido transito).
+  // calcularCMP agora retorna BRL/kg honestamente.
   const estoqueFisico = lotes.filter((l) => l.estagioTransito == null);
-  const cmpUsdTon = calcularCMP(estoqueFisico);
+  const cmpBrlKg = calcularCMP(estoqueFisico);
   const totalKg = estoqueFisico.reduce((acc, l) => acc + l.quantidadeFisicaKg, 0);
-  const valorEstoqueUsd = (totalKg / 1000) * cmpUsdTon;
-  const valorEstoqueBrl = valorEstoqueUsd * ptax;
+  const valorEstoqueBrl = totalKg * cmpBrlKg;
+  const valorEstoqueUsd = ptax > 0 ? valorEstoqueBrl / ptax : 0;
 
-  const exposicaoUsd = calcularExposicaoCambial(lotes);
-  const exposicaoBrl = exposicaoUsd * ptax;
+  // calcularExposicaoCambial agora retorna BRL direto (custoBrlKg é BRL/kg).
+  // Reverte pra USD via PTAX pra coerencia com o KPI exibido.
+  const exposicaoBrl = calcularExposicaoCambial(lotes);
+  const exposicaoUsd = ptax > 0 ? exposicaoBrl / ptax : 0;
 
   // Giro medio por familia (consumo_medio_diario_kg da config_produto, familia via JOIN)
   const giroRes = await pool.query(`
@@ -202,7 +224,6 @@ export async function getEvolucao(meses: number = 6): Promise<EvolucaoMensal[]> 
 
 export async function getTabelaAnalitica(): Promise<TabelaAnaliticaSku[]> {
   const pool = getPool();
-  const ptax = await getPtaxCorrente();
 
   const res = await pool.query(`
     WITH saldo AS (
@@ -211,7 +232,7 @@ export async function getTabelaAnalitica(): Promise<TabelaAnaliticaSku[]> {
         SUM(l.quantidade_fisica_kg)::numeric AS qtd_kg,
         CASE WHEN SUM(l.quantidade_fisica_kg) > 0
              THEN SUM(l.quantidade_fisica_kg * COALESCE(l.custo_brl_kg, 0)) / SUM(l.quantidade_fisica_kg)
-             ELSE 0 END::numeric AS cmp_usd_ton
+             ELSE 0 END::numeric AS cmp_brl_kg
       FROM stockbridge.lote l
       WHERE l.ativo = true AND l.estagio_transito IS NULL
       GROUP BY l.produto_codigo_acxe
@@ -229,7 +250,7 @@ export async function getTabelaAnalitica(): Promise<TabelaAnaliticaSku[]> {
       COALESCE(f.familia_atlas, p.descricao_familia) AS familia,
       p.ncm,
       s.qtd_kg,
-      s.cmp_usd_ton,
+      s.cmp_brl_kg,
       c.consumo_medio_diario_kg,
       COALESCE(d.c, 0) AS divs
     FROM saldo s
@@ -239,15 +260,15 @@ export async function getTabelaAnalitica(): Promise<TabelaAnaliticaSku[]> {
     LEFT JOIN divs d ON d.produto_codigo_acxe = s.produto_codigo_acxe
     WHERE COALESCE(f.incluir_em_metricas, true) = true
       AND COALESCE(c.incluir_em_metricas, true) = true
-    ORDER BY (s.qtd_kg * s.cmp_usd_ton) DESC
+    ORDER BY (s.qtd_kg * s.cmp_brl_kg) DESC
   `).catch((err) => {
     logger.warn({ err: err.message }, 'Query tabela analitica falhou');
     return { rows: [] };
   });
 
-  return (res.rows as Array<{ produto_codigo_acxe: number; nome: string; familia: string | null; ncm: string | null; qtd_kg: string; cmp_usd_ton: string; consumo_medio_diario_kg: string | null; divs: number }>).map((r) => {
+  return (res.rows as Array<{ produto_codigo_acxe: number; nome: string; familia: string | null; ncm: string | null; qtd_kg: string; cmp_brl_kg: string; consumo_medio_diario_kg: string | null; divs: number }>).map((r) => {
     const qtdKg = Number(r.qtd_kg);
-    const cmpUsdTon = Number(r.cmp_usd_ton);
+    const cmpBrlKg = Number(r.cmp_brl_kg);
     const consumoKg = r.consumo_medio_diario_kg != null ? Number(r.consumo_medio_diario_kg) : null;
     const cobertura = consumoKg && consumoKg > 0 ? Math.round(qtdKg / consumoKg) : null;
     return {
@@ -256,8 +277,8 @@ export async function getTabelaAnalitica(): Promise<TabelaAnaliticaSku[]> {
       familia: r.familia,
       ncm: r.ncm,
       quantidadeKg: qtdKg,
-      cmpUsdTon,
-      valorBrl: Math.round((qtdKg / 1000) * cmpUsdTon * ptax),
+      cmpBrlKg,
+      valorBrl: Math.round(qtdKg * cmpBrlKg),
       coberturaDias: cobertura,
       divergencias: Number(r.divs),
     };

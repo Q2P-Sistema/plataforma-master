@@ -264,6 +264,9 @@ importers:
       '@atlas/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@atlas/integration-bcb':
+        specifier: workspace:*
+        version: link:../../packages/integrations/bcb
       '@atlas/integration-omie':
         specifier: workspace:*
         version: link:../../packages/integrations/omie
