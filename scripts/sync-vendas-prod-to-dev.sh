@@ -13,6 +13,10 @@
 #   - public."tbl_produtos_Q2P_Filial"           (cadastro de produtos da Filial,
 #       necessario pra match por descricao na funcao StockBridge — produtos da
 #       ACXE/Q2P matriz vem por outros syncs e ja estao em dev)
+#   - public."tbl_posicaoEstoque_ACXE"           saldo atual por SKU/local OMIE
+#   - public."tbl_posicaoEstoque_Q2P"            (consumido por Meu Estoque do
+#                                                 StockBridge via vw_posicaoEstoqueUnificadaFamilia)
+#   Obs: tbl_posicaoEstoque_Q2P_Filial NAO existe em prod — Filial nao opera estoque.
 #
 # Tratamento de views dependentes:
 #   pg_restore --clean nao suporta CASCADE. Se houver views (ou matviews) no
@@ -61,6 +65,8 @@ TABLES=(
   'tbl_pedidosVendas_Q2P_Filial'
   'tbl_pedidosVendas_itens_Q2P_Filial'
   'tbl_produtos_Q2P_Filial'
+  'tbl_posicaoEstoque_ACXE'
+  'tbl_posicaoEstoque_Q2P'
 )
 
 # ── Pre-checks ───────────────────────────────────────────────────────────────
@@ -124,19 +130,48 @@ mkdir -p "$DUMP_DIR"
 echo
 echo "▶ [1/5] Detectando views/matviews dependentes no dev"
 
-# Lista de views dependentes (qualified name)
+# Lista de views dependentes (cadeia transitiva via CTE recursivo).
+# Pega views diretas (nivel 1) e tambem views que dependem de views (nivel N+).
+# Ex: tbl_posicaoEstoque_* ← vw_posicaoEstoqueUnificada ← vw_recebiveisTotal ← vw_fluxoCaixa
 DEP_VIEWS=$(dev_psql -A -t -X <<SQL
-SELECT DISTINCT quote_ident(n.nspname) || '.' || quote_ident(c.relname)
-FROM pg_depend d
-JOIN pg_rewrite r        ON r.oid = d.objid
-JOIN pg_class c          ON c.oid = r.ev_class
-JOIN pg_namespace n      ON n.oid = c.relnamespace
-JOIN pg_class src        ON src.oid = d.refobjid
-JOIN pg_namespace nsrc   ON nsrc.oid = src.relnamespace
-WHERE nsrc.nspname = 'public'
-  AND src.relname IN ($(printf "'%s'," "${TABLES[@]}" | sed 's/,$//'))
-  AND c.relkind IN ('v','m')
-  AND c.relname NOT IN ($(printf "'%s'," "${TABLES[@]}" | sed 's/,$//'));
+WITH RECURSIVE base_tables AS (
+  SELECT c.oid
+  FROM pg_class c
+  JOIN pg_namespace n ON n.oid = c.relnamespace
+  WHERE n.nspname = 'public'
+    AND c.relname IN ($(printf "'%s'," "${TABLES[@]}" | sed 's/,$//'))
+),
+deps AS (
+  -- Nivel 1: views/matviews que dependem diretamente das tabelas
+  SELECT DISTINCT c.oid, c.relname, c.relkind, n.nspname, 1 AS nivel
+  FROM pg_depend d
+  JOIN pg_rewrite r   ON r.oid = d.objid
+  JOIN pg_class c     ON c.oid = r.ev_class
+  JOIN pg_namespace n ON n.oid = c.relnamespace
+  WHERE d.refobjid IN (SELECT oid FROM base_tables)
+    AND c.relkind IN ('v','m')
+    AND c.oid NOT IN (SELECT oid FROM base_tables)
+
+  UNION
+
+  -- Nivel N+: views que dependem de views ja em deps
+  SELECT DISTINCT c.oid, c.relname, c.relkind, n.nspname, prev.nivel + 1
+  FROM deps prev
+  JOIN pg_depend d    ON d.refobjid = prev.oid
+  JOIN pg_rewrite r   ON r.oid = d.objid
+  JOIN pg_class c     ON c.oid = r.ev_class
+  JOIN pg_namespace n ON n.oid = c.relnamespace
+  WHERE c.relkind IN ('v','m')
+    AND c.oid <> prev.oid
+)
+-- Ordena por nivel ASC pra recriacao funcionar (base antes de dependentes)
+SELECT quote_ident(nspname) || '.' || quote_ident(relname)
+FROM (
+  SELECT nspname, relname, MIN(nivel) AS nivel
+  FROM deps
+  GROUP BY nspname, relname
+) sub
+ORDER BY nivel, relname;
 SQL
 )
 
@@ -169,12 +204,16 @@ else
 
   echo "  ✓ Definicoes salvas em $DEP_VIEWS_FILE"
   echo
-  echo "  DROP das views (necessario antes do restore)..."
+  echo "  DROP das views via CASCADE (cobre cadeia transitiva)..."
+  # Usa CASCADE pra evitar ter que ordenar topologicamente as views.
+  # Todas que dependem (direta ou indiretamente) caem juntas. Em [4/5]
+  # recriamos todas a partir das definicoes salvas no _dependent_views.sql.
   while IFS= read -r view; do
     [ -z "$view" ] && continue
-    kind=$(dev_psql -A -t -X -c "SELECT relkind FROM pg_class WHERE oid='$view'::regclass;")
+    kind=$(dev_psql -A -t -X -c "SELECT relkind FROM pg_class WHERE oid='$view'::regclass;" 2>/dev/null || true)
+    [ -z "$kind" ] && continue  # ja foi dropada via CASCADE de outra
     keyword=$([ "$kind" = "m" ] && echo "MATERIALIZED VIEW" || echo "VIEW")
-    dev_psql -v ON_ERROR_STOP=1 -c "DROP $keyword IF EXISTS $view;"
+    dev_psql -v ON_ERROR_STOP=1 -c "DROP $keyword IF EXISTS $view CASCADE;"
   done <<< "$DEP_VIEWS"
 fi
 
