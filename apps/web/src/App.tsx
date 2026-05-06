@@ -7,7 +7,7 @@ import {
   useLocation,
   useNavigate,
 } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { ShellLayout, type SidebarSubItem } from '@atlas/ui';
 import {
   LayoutDashboard,
@@ -53,6 +53,7 @@ import { CockpitPage } from './pages/stockbridge/gestor/CockpitPage.js';
 import { AprovacoesPage } from './pages/stockbridge/gestor/AprovacoesPage.js';
 import { TransitoPage } from './pages/stockbridge/gestor/TransitoPage.js';
 import { SaidaManualPage } from './pages/stockbridge/operador/SaidaManualPage.js';
+import { ComodatoRetornoPage } from './pages/stockbridge/operador/ComodatoRetornoPage.js';
 import { MetricasPage } from './pages/stockbridge/diretor/MetricasPage.js';
 import { FornecedoresPage } from './pages/stockbridge/diretor/FornecedoresPage.js';
 import { ConfigProdutosPage } from './pages/stockbridge/diretor/ConfigProdutosPage.js';
@@ -90,6 +91,7 @@ const STOCKBRIDGE_SUB_ITEMS: SidebarSubItem[] = [
   { id: 'sb-movimentacoes', name: 'Movimentações', path: '/stockbridge/movimentacoes', icon: Table },
   { id: 'sb-transito', name: 'Trânsito', path: '/stockbridge/transito', icon: Activity },
   { id: 'sb-saida-manual', name: 'Saída Manual', path: '/stockbridge/saida-manual', icon: ShoppingCart },
+  { id: 'sb-comodato-retorno', name: 'Retorno Comodato', path: '/stockbridge/comodato-retorno', icon: Activity },
   { id: 'sb-metricas', name: 'Métricas', path: '/stockbridge/metricas', icon: BarChart3 },
   { id: 'sb-fornecedores', name: 'Fornecedores', path: '/stockbridge/fornecedores', icon: Building2 },
   { id: 'sb-localidades', name: 'Localidades', path: '/stockbridge/localidades', icon: Landmark },
@@ -160,6 +162,24 @@ function ProtectedShell() {
   const location = useLocation();
   const navigate = useNavigate();
   const logout = useAuthStore((s) => s.logout);
+  const csrfToken = useAuthStore((s) => s.csrfToken);
+
+  // Contador de aprovacoes pendentes — so pra gestor/diretor (operador 403 na rota).
+  // Hook precisa rodar SEMPRE (Rules of Hooks); guarded por `enabled` quando user nao esta pronto.
+  const podeAprovar = user?.role === 'gestor' || user?.role === 'diretor';
+  const { data: aprovacoesCount = 0 } = useQuery<number>({
+    queryKey: ['stockbridge', 'aprovacoes', 'count'],
+    enabled: !!user && podeAprovar,
+    refetchInterval: 30_000,
+    queryFn: async () => {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (csrfToken) headers['x-csrf-token'] = csrfToken;
+      const res = await fetch('/api/v1/stockbridge/aprovacoes', { credentials: 'include', headers });
+      if (!res.ok) return 0;
+      const body = (await res.json()) as { data: unknown[] };
+      return Array.isArray(body.data) ? body.data.length : 0;
+    },
+  });
 
   if (isLoading) {
     return (
@@ -183,6 +203,10 @@ function ProtectedShell() {
     return null;
   }
 
+  const stockbridgeSubItems = STOCKBRIDGE_SUB_ITEMS.map((s) =>
+    s.id === 'sb-aprovacoes' ? { ...s, badge: aprovacoesCount } : s,
+  );
+
   const sidebarModules = modules.map((m: ModuleInfo) => ({
     id: m.id,
     name: m.name,
@@ -197,7 +221,7 @@ function ProtectedShell() {
           : m.id === 'breakingpoint'
             ? BP_SUB_ITEMS
             : m.id === 'stockbridge'
-              ? STOCKBRIDGE_SUB_ITEMS
+              ? stockbridgeSubItems
               : undefined,
   }));
 
@@ -265,6 +289,7 @@ function ProtectedShell() {
             <Route path="movimentacoes" element={<MovimentacoesPage />} />
             <Route path="transito" element={<TransitoPage />} />
             <Route path="saida-manual" element={<SaidaManualPage />} />
+            <Route path="comodato-retorno" element={<ComodatoRetornoPage />} />
             <Route path="metricas" element={<MetricasPage />} />
             <Route path="fornecedores" element={<FornecedoresPage />} />
             <Route path="localidades" element={<LocalidadesPage />} />

@@ -128,6 +128,14 @@ export const movimentacao = stockbridgeSchema.table(
     tentativasQ2p: smallint('tentativas_q2p').notNull().default(0),
     tentativasAcxeFaltando: smallint('tentativas_acxe_faltando').notNull().default(0),
     ultimoErroOmie: jsonb('ultimo_erro_omie'),
+    // Saida manual sem lote (migration 0026)
+    produtoCodigoAcxe: bigint('produto_codigo_acxe', { mode: 'number' }),
+    galpao: text('galpao'),
+    galpaoDestino: text('galpao_destino'),
+    empresa: text('empresa').$type<'acxe' | 'q2p'>(),
+    criadoPor: uuid('criado_por').references(() => users.id),
+    dtPrevistaRetorno: date('dt_prevista_retorno'),
+    movimentacaoOrigemId: uuid('movimentacao_origem_id'),
     ativo: boolean('ativo').notNull().default(true),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -136,6 +144,8 @@ export const movimentacao = stockbridgeSchema.table(
     index('movimentacao_tipo_ativo_idx').on(t.tipoMovimento, t.ativo),
     index('movimentacao_created_idx').on(t.createdAt),
     index('movimentacao_lote_idx').on(t.loteId),
+    index('movimentacao_sku_galpao_empresa_idx').on(t.produtoCodigoAcxe, t.galpao, t.empresa),
+    index('movimentacao_criado_por_idx').on(t.criadoPor, t.createdAt),
   ],
 );
 
@@ -144,7 +154,8 @@ export const aprovacao = stockbridgeSchema.table(
   'aprovacao',
   {
     id: uuid('id').defaultRandom().primaryKey(),
-    loteId: uuid('lote_id').notNull().references(() => lote.id, { onDelete: 'cascade' }),
+    // Migration 0026: lote_id virou opcional; usar produto_codigo_acxe+galpao+empresa quando saida sem lote
+    loteId: uuid('lote_id').references(() => lote.id, { onDelete: 'cascade' }),
     precisaNivel: varchar('precisa_nivel', { length: 20 }).notNull().$type<'gestor' | 'diretor'>(),
     tipoAprovacao: varchar('tipo_aprovacao', { length: 30 }).notNull().$type<
       | 'recebimento_divergencia'
@@ -155,6 +166,7 @@ export const aprovacao = stockbridgeSchema.table(
       | 'saida_descarte'
       | 'saida_quebra'
       | 'ajuste_inventario'
+      | 'retorno_comodato'
     >(),
     quantidadePrevistaKg: numeric('quantidade_prevista_kg', { precision: 12, scale: 3 }),
     quantidadeRecebidaKg: numeric('quantidade_recebida_kg', { precision: 12, scale: 3 }),
@@ -169,12 +181,34 @@ export const aprovacao = stockbridgeSchema.table(
       .default('pendente')
       .$type<'pendente' | 'aprovada' | 'rejeitada'>(),
     rejeicaoMotivo: text('rejeicao_motivo'),
+    // Migration 0026: novas colunas pra saida sem lote
+    produtoCodigoAcxe: bigint('produto_codigo_acxe', { mode: 'number' }),
+    galpao: text('galpao'),
+    empresa: text('empresa').$type<'acxe' | 'q2p'>(),
+    movimentacaoId: uuid('movimentacao_id'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     index('aprovacao_status_nivel_idx').on(t.status, t.precisaNivel),
     index('aprovacao_lote_idx').on(t.loteId),
   ],
+);
+
+// ── Reserva de saldo (controle de concorrencia para saida manual) ──
+export const reservaSaldo = stockbridgeSchema.table(
+  'reserva_saldo',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    movimentacaoId: uuid('movimentacao_id').notNull().unique(),
+    produtoCodigoAcxe: bigint('produto_codigo_acxe', { mode: 'number' }).notNull(),
+    galpao: text('galpao').notNull(),
+    empresa: text('empresa').notNull().$type<'acxe' | 'q2p'>(),
+    quantidadeKg: numeric('quantidade_kg', { precision: 12, scale: 3 }).notNull(),
+    status: text('status').notNull().default('ativa').$type<'ativa' | 'liberada' | 'consumida'>(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    resolvidoEm: timestamp('resolvido_em', { withTimezone: true }),
+  },
+  (t) => [index('reserva_sku_idx').on(t.produtoCodigoAcxe, t.galpao, t.empresa, t.status)],
 );
 
 // ── Divergencia ────────────────────────────────────────────
@@ -260,6 +294,8 @@ export type Movimentacao = typeof movimentacao.$inferSelect;
 export type NewMovimentacao = typeof movimentacao.$inferInsert;
 export type Aprovacao = typeof aprovacao.$inferSelect;
 export type NewAprovacao = typeof aprovacao.$inferInsert;
+export type ReservaSaldo = typeof reservaSaldo.$inferSelect;
+export type NewReservaSaldo = typeof reservaSaldo.$inferInsert;
 export type Divergencia = typeof divergencia.$inferSelect;
 export type NewDivergencia = typeof divergencia.$inferInsert;
 export type FornecedorExclusao = typeof fornecedorExclusao.$inferSelect;

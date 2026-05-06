@@ -300,25 +300,49 @@ ORDER BY created_at DESC;
 
 ---
 
-### 10. Saída manual
+### 10. Saída manual ⏳ (em validação)
 
-- [ ] Cada subtipo gera aprovação no nível correto:
+> **Refator 2026-05-06**: redesign completo — agora é agnóstico de lote (operador escolhe SKU+galpão+empresa, não lote/UUID). Spec em [spec-saida-manual-redesign.md](spec-saida-manual-redesign.md). Migrations 0026 + 0027.
 
-| Subtipo | Nível esperado |
-|---|---|
-| `transf_intra_cnpj` | gestor |
-| `comodato` | **diretor** |
-| `amostra` | gestor |
-| `descarte` | gestor |
-| `quebra` | gestor |
-| `inventario_menos` | gestor |
-| `inventario_mais` | gestor |
-| `entrada_manual` | gestor |
+- [x] Cada subtipo gera aprovação no nível correto:
 
-- [ ] Operador lança saída → cria pendência → gestor/diretor aprova → OMIE chamado
-- [ ] Tentar lançar saída de produto inexistente → erro
-- [ ] Tentar saída com qtd > saldo disponível → bloqueado (ou aprovação especial?)
-- [ ] Verificar audit log da saída em `shared.audit_log`
+| Subtipo | Nível | OMIE |
+|---|---|---|
+| `transf_intra_cnpj` | gestor | TRF/TRF dual ACXE+Q2P |
+| `comodato` | **diretor** | TRF/TRF dual → 90.0.1 TROCA |
+| `amostra` | gestor | SAI/PER dual |
+| `descarte` | gestor | SAI/PER dual |
+| `quebra` | gestor | SAI/PER dual |
+| `inventario_menos` | gestor | SAI/INV dual |
+| `retorno_comodato` | gestor | SAI/INV (TROCA) + ENT/INV (destino) — dual |
+
+**Regras de negócio implementadas:**
+
+- [x] Operador escolhe SKU+galpão+empresa via UI cascateada (`/stockbridge/saida-manual`)
+- [x] Saldo disponível = saldo OMIE − reservas ativas (race-safe via re-checagem na transação)
+- [x] Toda saída cria reserva em `stockbridge.reserva_saldo` (status=ativa)
+- [x] Aprovação dispara chamada OMIE; reserva → `consumida` em sucesso
+- [x] Rejeição libera reserva (status='liberada') + soft-delete da movimentação
+- [x] Espelhamento: saída em galpão `.1` (importado) chama OMIE em ACXE+Q2P
+- [x] Comodato em galpão espelhado → TRF dual pra TROCA em ambas empresas
+- [x] Retorno comodato aceita SKU/qtd diferentes; gera divergência fiscal
+- [x] Subtipos definitivos (amostra/descarte/quebra/inventario_menos) criam `stockbridge.divergencia` tipo `fiscal_pendente`
+- [x] Email pra gestores/diretores ATIVOS com módulo habilitado
+- [x] Badge no menu de Aprovações com contador de pendências
+- [x] Toast visual após registrar saída
+- [x] Filtro "Apenas minhas" em Movimentações; operador vê só as suas
+
+**Fluxo a validar fim-a-fim no DEV:**
+
+- [ ] Operador lança descarte → toast aparece → vai pra Aprovações
+- [ ] Gestor recebe email; abre Aprovações → vê pendência com SKU+galpão+empresa
+- [ ] Gestor aprova → OMIE recebe SAI nas 2 empresas (galpão `.1`)
+- [ ] Movimentações mostra a saída com status_omie=concluida + ladoAcxe + ladoQ2p preenchidos
+- [ ] Saldo OMIE caiu nas duas empresas (verificar `vw_posicaoEstoqueUnificadaFamilia`)
+- [ ] Gestor rejeita outra → reserva liberada, saldo disponível volta
+- [ ] Comodato Q2P galpão 11.1 → TROCA recebe material em ACXE e Q2P
+- [ ] Retorno comodato com SKU diferente → divergência aparece pro operador
+- [ ] Tentar saída com qtd > saldo → erro `SaldoInsuficienteError`
 
 ---
 

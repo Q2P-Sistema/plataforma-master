@@ -59,7 +59,8 @@ export type TipoAprovacao =
   | 'saida_amostra'
   | 'saida_descarte'
   | 'saida_quebra'
-  | 'ajuste_inventario';
+  | 'ajuste_inventario'
+  | 'retorno_comodato';
 
 export type TipoDivergencia = 'faltando' | 'varredura' | 'cruzada' | 'fiscal_pendente';
 

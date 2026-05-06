@@ -5,8 +5,9 @@ import { useAuthStore } from '../../../stores/auth.store.js';
 
 interface Pendencia {
   id: string;
-  loteId: string;
-  loteCodigo: string;
+  /** Pode ser null para saidas manuais sem lote (migration 0026). */
+  loteId: string | null;
+  loteCodigo: string | null;
   tipoAprovacao: string;
   precisaNivel: 'gestor' | 'diretor';
   quantidadePrevistaKg: number | null;
@@ -17,6 +18,9 @@ interface Pendencia {
   lancadoPor: { id: string; nome: string };
   lancadoEm: string;
   produto: { codigoAcxe: number; fornecedor: string };
+  /** Saidas manuais sem lote: galpao + empresa do material. */
+  galpao: string | null;
+  empresa: 'acxe' | 'q2p' | null;
 }
 
 const TIPO_LABEL: Record<string, string> = {
@@ -28,7 +32,17 @@ const TIPO_LABEL: Record<string, string> = {
   saida_descarte: 'Descarte/Perda',
   saida_quebra: 'Quebra técnica',
   ajuste_inventario: 'Ajuste de inventário',
+  retorno_comodato: 'Retorno de Comodato',
 };
+
+const GALPAO_LABELS: Record<string, string> = {
+  '11': 'Santo André — Galpão A',
+  '12': 'Santo André — Galpão B',
+  '13': 'Santo André — Galpão C',
+  '21': 'Extrema',
+  '31': 'Armazém Externo (ATN)',
+};
+const labelGalpao = (g: string) => GALPAO_LABELS[g] ?? `Galpão ${g}`;
 
 function useApiFetch() {
   const csrfToken = useAuthStore((s) => s.csrfToken);
@@ -125,8 +139,16 @@ export function AprovacoesPage() {
                     )}
                   </div>
                   <div className="font-serif text-base text-atlas-ink">
-                    Lote {p.loteCodigo} — {p.produto.fornecedor}
+                    {p.loteCodigo ? `Lote ${p.loteCodigo} — ` : ''}{p.produto.fornecedor}
                   </div>
+                  {!p.loteCodigo && (p.galpao || p.empresa) && (
+                    <div className="text-xs text-atlas-muted mt-0.5">
+                      SKU <span className="font-mono">{p.produto.codigoAcxe}</span>
+                      {p.galpao && <> · {labelGalpao(p.galpao)}</>}
+                      {p.empresa && <> · {p.empresa.toUpperCase()}</>}
+                      {p.quantidadeRecebidaKg != null && <> · {Math.abs(p.quantidadeRecebidaKg).toLocaleString('pt-BR', { maximumFractionDigits: 0 })} kg</>}
+                    </div>
+                  )}
                   <div className="text-xs text-atlas-muted mt-0.5">
                     Lançado por <strong>{p.lancadoPor.nome}</strong> em {new Date(p.lancadoEm).toLocaleString('pt-BR')}
                   </div>

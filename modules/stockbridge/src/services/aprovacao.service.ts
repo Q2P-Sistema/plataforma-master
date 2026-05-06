@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
-import { eq, and, desc, inArray, sql } from 'drizzle-orm';
+import { eq, and, inArray, sql } from 'drizzle-orm';
 import { getDb, createLogger } from '@atlas/core';
-import { aprovacao, lote, movimentacao, localidadeCorrelacao, users } from '@atlas/db';
+import { aprovacao, lote, movimentacao, localidadeCorrelacao, reservaSaldo, users } from '@atlas/db';
 import type { Perfil, TipoAprovacao } from '../types.js';
 import { NIVEL_APROVACAO_POR_SUBTIPO } from '../types.js';
 import {
@@ -18,6 +18,13 @@ import {
   enviarAlertaPendenciaOmie,
 } from './notificacao.service.js';
 import { resolverEstoqueDiferencaAcxe } from './estoques-especiais-acxe.js';
+import {
+  executarSaidaOmieDual,
+  executarTransferenciaIntraDual,
+  executarComodatoOmieDual,
+  executarRetornoComodatoOmieDual,
+  type ResultadoDual,
+} from './omie-saida.service.js';
 
 const logger = createLogger('stockbridge:aprovacao');
 
@@ -47,8 +54,9 @@ export class AprovacaoStatusInvalidoError extends Error {
 
 export interface PendenciaItem {
   id: string;
-  loteId: string;
-  loteCodigo: string;
+  /** Pode ser null para saidas manuais sem lote (migration 0026). */
+  loteId: string | null;
+  loteCodigo: string | null;
   tipoAprovacao: TipoAprovacao;
   precisaNivel: 'gestor' | 'diretor';
   quantidadePrevistaKg: number | null;
@@ -58,13 +66,20 @@ export interface PendenciaItem {
   observacoes: string | null;
   lancadoPor: { id: string; nome: string };
   lancadoEm: string;
+  /** Para fluxo com lote, vem do lote. Para fluxo sem lote (saida manual), vem da aprovacao. */
   produto: { codigoAcxe: number; fornecedor: string };
+  /** Apenas para saida sem lote: galpao + empresa do material. */
+  galpao: string | null;
+  empresa: 'acxe' | 'q2p' | null;
 }
 
 /**
  * Lista pendencias de aprovacao acessiveis ao perfil do usuario.
  *  - Gestor ve apenas pendencias `precisa_nivel = gestor`
  *  - Diretor ve ambas (gestor + diretor)
+ *
+ * Cobre tanto pendencias com lote (recebimento_divergencia) quanto sem lote
+ * (saida manual: saida_amostra/descarte/quebra/transf/comodato/inventario/retorno).
  */
 export async function listarPendencias(perfil: Perfil): Promise<PendenciaItem[]> {
   if (perfil === 'operador') {
@@ -73,29 +88,56 @@ export async function listarPendencias(perfil: Perfil): Promise<PendenciaItem[]>
   const db = getDb();
   const niveisAcessiveis: Array<'gestor' | 'diretor'> = perfil === 'diretor' ? ['gestor', 'diretor'] : ['gestor'];
 
-  const rows = await db
-    .select({
-      id: aprovacao.id,
-      loteId: aprovacao.loteId,
-      tipoAprovacao: aprovacao.tipoAprovacao,
-      precisaNivel: aprovacao.precisaNivel,
-      quantidadePrevistaKg: aprovacao.quantidadePrevistaKg,
-      quantidadeRecebidaKg: aprovacao.quantidadeRecebidaKg,
-      tipoDivergencia: aprovacao.tipoDivergencia,
-      observacoes: aprovacao.observacoes,
-      lancadoPor: aprovacao.lancadoPor,
-      lancadoEm: aprovacao.lancadoEm,
-      loteCodigo: lote.codigo,
-      produtoCodigoAcxe: lote.produtoCodigoAcxe,
-      fornecedor: lote.fornecedorNome,
-    })
-    .from(aprovacao)
-    .innerJoin(lote, eq(lote.id, aprovacao.loteId))
-    .where(and(eq(aprovacao.status, 'pendente'), inArray(aprovacao.precisaNivel, niveisAcessiveis)))
-    .orderBy(desc(aprovacao.lancadoEm));
+  const niveisIn = sql.join(
+    niveisAcessiveis.map((n) => sql`${n}`),
+    sql`, `,
+  );
+  const rows = await db.execute<{
+    id: string;
+    lote_id: string | null;
+    tipo_aprovacao: string;
+    precisa_nivel: string;
+    quantidade_prevista_kg: string | null;
+    quantidade_recebida_kg: string | null;
+    tipo_divergencia: string | null;
+    observacoes: string | null;
+    lancado_por: string;
+    lancado_em: string;
+    lote_codigo: string | null;
+    lote_produto_codigo_acxe: number | null;
+    lote_fornecedor_nome: string | null;
+    aprov_produto_codigo_acxe: number | null;
+    aprov_galpao: string | null;
+    aprov_empresa: string | null;
+    produto_descricao: string | null;
+  }>(sql`
+    SELECT a.id,
+           a.lote_id,
+           a.tipo_aprovacao,
+           a.precisa_nivel,
+           a.quantidade_prevista_kg::text,
+           a.quantidade_recebida_kg::text,
+           a.tipo_divergencia,
+           a.observacoes,
+           a.lancado_por,
+           a.lancado_em::text,
+           l.codigo AS lote_codigo,
+           l.produto_codigo_acxe AS lote_produto_codigo_acxe,
+           l.fornecedor_nome AS lote_fornecedor_nome,
+           a.produto_codigo_acxe AS aprov_produto_codigo_acxe,
+           a.galpao AS aprov_galpao,
+           a.empresa AS aprov_empresa,
+           p.descricao AS produto_descricao
+    FROM stockbridge.aprovacao a
+    LEFT JOIN stockbridge.lote l ON l.id = a.lote_id
+    LEFT JOIN public."tbl_produtos_ACXE" p
+      ON p.codigo_produto = COALESCE(a.produto_codigo_acxe, l.produto_codigo_acxe)
+    WHERE a.status = 'pendente'
+      AND a.precisa_nivel IN (${niveisIn})
+    ORDER BY a.lancado_em DESC
+  `);
 
-  // Busca nomes dos usuarios em batch (evita N+1)
-  const userIds = [...new Set(rows.map((r) => r.lancadoPor))];
+  const userIds = [...new Set(rows.rows.map((r) => r.lancado_por))];
   const userMap = new Map<string, string>();
   if (userIds.length > 0) {
     const userRows = await db
@@ -105,24 +147,28 @@ export async function listarPendencias(perfil: Perfil): Promise<PendenciaItem[]>
     for (const u of userRows) userMap.set(u.id, u.name);
   }
 
-  return rows.map((r) => {
-    const previsto = r.quantidadePrevistaKg != null ? Number(r.quantidadePrevistaKg) : null;
-    const recebido = r.quantidadeRecebidaKg != null ? Number(r.quantidadeRecebidaKg) : null;
+  return rows.rows.map((r) => {
+    const previsto = r.quantidade_prevista_kg != null ? Number(r.quantidade_prevista_kg) : null;
+    const recebido = r.quantidade_recebida_kg != null ? Number(r.quantidade_recebida_kg) : null;
     const delta = previsto != null && recebido != null ? Number((recebido - previsto).toFixed(3)) : null;
+    const codigoAcxe = r.aprov_produto_codigo_acxe ?? r.lote_produto_codigo_acxe ?? 0;
+    const fornecedor = r.lote_fornecedor_nome ?? r.produto_descricao ?? `SKU ${codigoAcxe}`;
     return {
       id: r.id,
-      loteId: r.loteId,
-      loteCodigo: r.loteCodigo,
-      tipoAprovacao: r.tipoAprovacao,
-      precisaNivel: r.precisaNivel,
+      loteId: r.lote_id,
+      loteCodigo: r.lote_codigo,
+      tipoAprovacao: r.tipo_aprovacao as TipoAprovacao,
+      precisaNivel: r.precisa_nivel as 'gestor' | 'diretor',
       quantidadePrevistaKg: previsto,
       quantidadeRecebidaKg: recebido,
       deltaKg: delta,
-      tipoDivergencia: r.tipoDivergencia,
+      tipoDivergencia: r.tipo_divergencia,
       observacoes: r.observacoes,
-      lancadoPor: { id: r.lancadoPor, nome: userMap.get(r.lancadoPor) ?? 'desconhecido' },
-      lancadoEm: r.lancadoEm.toISOString(),
-      produto: { codigoAcxe: r.produtoCodigoAcxe, fornecedor: r.fornecedor },
+      lancadoPor: { id: r.lancado_por, nome: userMap.get(r.lancado_por) ?? 'desconhecido' },
+      lancadoEm: new Date(r.lancado_em).toISOString(),
+      produto: { codigoAcxe, fornecedor },
+      galpao: r.aprov_galpao,
+      empresa: (r.aprov_empresa as 'acxe' | 'q2p' | null) ?? null,
     };
   });
 }
@@ -229,6 +275,16 @@ export interface AprovarResult {
   };
 }
 
+const TIPOS_SAIDA_MANUAL: ReadonlySet<TipoAprovacao> = new Set([
+  'saida_transf_intra',
+  'saida_comodato',
+  'saida_amostra',
+  'saida_descarte',
+  'saida_quebra',
+  'ajuste_inventario',
+  'retorno_comodato',
+]);
+
 export async function aprovar(input: AprovarInput): Promise<AprovarResult> {
   const db = getDb();
 
@@ -237,6 +293,11 @@ export async function aprovar(input: AprovarInput): Promise<AprovarResult> {
   if (!apPre) throw new AprovacaoNaoEncontradaError(input.id);
   if (apPre.status !== 'pendente') throw new AprovacaoStatusInvalidoError(input.id, apPre.status);
   checarNivel(input.perfilUsuario, apPre.precisaNivel);
+
+  // Saidas manuais (migration 0026) — fluxo dedicado, agnostico de lote.
+  if (TIPOS_SAIDA_MANUAL.has(apPre.tipoAprovacao)) {
+    return aprovarSaidaManual(apPre, input);
+  }
 
   // Para recebimento_divergencia precisamos chamar OMIE ANTES de commitar o update.
   // Se OMIE falhar, nada no PG muda — exceto quando recoverable (Q2P pos-ACXE ok ou
@@ -249,6 +310,7 @@ export async function aprovar(input: AprovarInput): Promise<AprovarResult> {
   let pendencia: { tipo: 'pendente_q2p' | 'pendente_acxe_faltando'; mensagemErro: string } | null = null;
   let notaFiscalParaEmail = apPre.id;
   if (apPre.tipoAprovacao === 'recebimento_divergencia') {
+    if (!apPre.loteId) throw new Error(`Aprovacao ${apPre.id} sem loteId — recebimento_divergencia exige lote`);
     opId = randomUUID();
     const [loteRow] = await db.select().from(lote).where(eq(lote.id, apPre.loteId)).limit(1);
     if (!loteRow) throw new Error(`Lote ${apPre.loteId} nao encontrado ao aprovar divergencia`);
@@ -380,11 +442,17 @@ export async function aprovar(input: AprovarInput): Promise<AprovarResult> {
         ? 'provisorio'
         : 'reconciliado';
 
-    await tx.update(lote).set({ status: statusLote, updatedAt: new Date() }).where(eq(lote.id, ap.loteId));
+    if (!ap.loteId) {
+      // Aprovacoes sem lote sao todas tratadas em aprovarSaidaManual via early return.
+      // Se chegou aqui sem loteId, e bug.
+      throw new Error(`Aprovacao ${ap.id} (${ap.tipoAprovacao}) sem lote — caminho inesperado`);
+    }
+    const loteIdNotNull: string = ap.loteId;
+    await tx.update(lote).set({ status: statusLote, updatedAt: new Date() }).where(eq(lote.id, loteIdNotNull));
 
     let movimentacaoId: string | null = null;
     if (omieIds && ap.tipoAprovacao === 'recebimento_divergencia') {
-      const [loteRow] = await tx.select().from(lote).where(eq(lote.id, ap.loteId)).limit(1);
+      const [loteRow] = await tx.select().from(lote).where(eq(lote.id, loteIdNotNull)).limit(1);
       const isPendenteQ2p = pendencia?.tipo === 'pendente_q2p';
       const isPendenteAcxeFaltando = pendencia?.tipo === 'pendente_acxe_faltando';
       const statusOmieMov: 'concluida' | 'pendente_q2p' | 'pendente_acxe_faltando' = pendencia
@@ -427,7 +495,7 @@ export async function aprovar(input: AprovarInput): Promise<AprovarResult> {
 
     return {
       statusLote,
-      loteId: ap.loteId,
+      loteId: loteIdNotNull,
       operadorId: ap.lancadoPor,
       tipoAprovacao: ap.tipoAprovacao,
       movimentacaoId,
@@ -503,9 +571,44 @@ export async function rejeitar(input: RejeitarInput): Promise<{ id: string }> {
       })
       .where(eq(aprovacao.id, input.id));
 
-    await tx.update(lote).set({ status: 'rejeitado', updatedAt: new Date() }).where(eq(lote.id, ap.loteId));
+    // Caminho com lote (recebimento_divergencia/entrada_manual): marca lote rejeitado
+    if (ap.loteId) {
+      await tx.update(lote).set({ status: 'rejeitado', updatedAt: new Date() }).where(eq(lote.id, ap.loteId));
+    }
 
-    return { operadorId: ap.lancadoPor, loteId: ap.loteId };
+    // Caminho sem lote (saida manual / retorno comodato): libera reserva e
+    // desativa movimentacao linkada (soft delete preserva auditoria).
+    if (ap.movimentacaoId) {
+      await tx
+        .update(reservaSaldo)
+        .set({ status: 'liberada', resolvidoEm: new Date() })
+        .where(and(eq(reservaSaldo.movimentacaoId, ap.movimentacaoId), eq(reservaSaldo.status, 'ativa')));
+      await tx
+        .update(movimentacao)
+        .set({ ativo: false, updatedAt: new Date() })
+        .where(eq(movimentacao.id, ap.movimentacaoId));
+      // Para retorno_comodato: tambem desativa a movimentacao de baixa do TROCA pareada.
+      if (ap.tipoAprovacao === 'retorno_comodato') {
+        const [movEntrada] = await tx
+          .select()
+          .from(movimentacao)
+          .where(eq(movimentacao.id, ap.movimentacaoId))
+          .limit(1);
+        if (movEntrada?.movimentacaoOrigemId) {
+          await tx
+            .update(movimentacao)
+            .set({ ativo: false, updatedAt: new Date() })
+            .where(
+              and(
+                eq(movimentacao.movimentacaoOrigemId, movEntrada.movimentacaoOrigemId),
+                eq(movimentacao.tipoMovimento, 'ajuste'),
+              ),
+            );
+        }
+      }
+    }
+
+    return { operadorId: ap.lancadoPor, loteId: ap.loteId ?? ap.movimentacaoId ?? '' };
   });
 
   logger.info({ aprovacaoId: input.id, perfilUsuario: input.perfilUsuario }, 'Aprovacao rejeitada');
@@ -563,6 +666,7 @@ export async function resubmeter(input: ResubmeterInput): Promise<{ id: string; 
       })
       .returning();
 
+    if (!ap.loteId) throw new Error(`Aprovacao ${ap.id} sem lote nao pode ser re-submetida`);
     const [loteRow] = await tx
       .update(lote)
       .set({
@@ -596,6 +700,329 @@ export async function resubmeter(input: ResubmeterInput): Promise<{ id: string; 
   });
 
   return { id: resultado.id, novaAprovacaoId: resultado.novaAprovacao.id };
+}
+
+/**
+ * Fluxo de aprovacao para saidas manuais (sem lote, migration 0026).
+ * - Resolve valor unitario do produto via vw_posicaoEstoqueUnificadaFamilia
+ * - Chama OMIE conforme subtipo (SAI/TRF/ENT)
+ * - Atualiza movimentacao com idMovest/idAjuste e status_omie='concluida'
+ * - Marca reserva como 'consumida'
+ * - Marca aprovacao como 'aprovada'
+ *
+ * Nota: para retorno_comodato a aprovacao aponta pra movimentacao DE ENTRADA
+ * (destino). A baixa do TROCA e localizada via movimentacao_origem_id +
+ * subtipo retorno_comodato + galpao TROCA.
+ */
+async function aprovarSaidaManual(
+  ap: typeof aprovacao.$inferSelect,
+  input: AprovarInput,
+): Promise<AprovarResult> {
+  const db = getDb();
+
+  if (!ap.produtoCodigoAcxe || !ap.galpao || !ap.empresa) {
+    throw new Error(`Aprovacao ${ap.id} sem produto/galpao/empresa — registro inconsistente`);
+  }
+  if (!ap.movimentacaoId) {
+    throw new Error(`Aprovacao ${ap.id} sem movimentacao linkada — registro inconsistente`);
+  }
+
+  const [mov] = await db.select().from(movimentacao).where(eq(movimentacao.id, ap.movimentacaoId)).limit(1);
+  if (!mov) throw new Error(`Movimentacao ${ap.movimentacaoId} nao encontrada`);
+
+  const quantidadeKg = Math.abs(Number(ap.quantidadeRecebidaKg ?? 0));
+  if (quantidadeKg <= 0) throw new Error(`Aprovacao ${ap.id} sem quantidade valida`);
+
+  const valorUnitario = await consultarValorUnitarioProduto(
+    Number(ap.produtoCodigoAcxe),
+    ap.galpao,
+    ap.empresa as 'acxe' | 'q2p',
+  );
+
+  const observacaoOmie = (ap.observacoes ?? `Saida manual ${ap.tipoAprovacao}`).slice(0, 240);
+
+  // Roteamento OMIE por tipoAprovacao
+  //   - Saidas definitivas + transf_intra: dual call (ACXE+Q2P) quando galpao espelhado
+  //   - Comodato: single Q2P (TROCA so existe Q2P)
+  //   - Retorno comodato: special (2 ajustes em sequencia)
+  let resultadoOmie:
+    | { kind: 'dual'; dual: ResultadoDual }
+    | {
+        kind: 'retorno_dual';
+        acxe: { baixa: { idMovest: string; idAjuste: string }; entrada: { idMovest: string; idAjuste: string } } | null;
+        q2p: { baixa: { idMovest: string; idAjuste: string }; entrada: { idMovest: string; idAjuste: string } } | null;
+        pendenciaQ2p: { mensagem: string } | null;
+      };
+
+  try {
+    switch (ap.tipoAprovacao) {
+      case 'saida_amostra':
+      case 'saida_descarte':
+      case 'saida_quebra': {
+        const r = await executarSaidaOmieDual(
+          {
+            opId: mov.opId,
+            produtoCodigoAcxe: Number(ap.produtoCodigoAcxe),
+            galpao: ap.galpao,
+            empresa: ap.empresa as 'acxe' | 'q2p',
+            quantidadeKg,
+            valorUnitario,
+            observacao: observacaoOmie,
+          },
+          'PER',
+        );
+        resultadoOmie = { kind: 'dual', dual: r };
+        break;
+      }
+      case 'ajuste_inventario': {
+        const r = await executarSaidaOmieDual(
+          {
+            opId: mov.opId,
+            produtoCodigoAcxe: Number(ap.produtoCodigoAcxe),
+            galpao: ap.galpao,
+            empresa: ap.empresa as 'acxe' | 'q2p',
+            quantidadeKg,
+            valorUnitario,
+            observacao: observacaoOmie,
+          },
+          'INV',
+        );
+        resultadoOmie = { kind: 'dual', dual: r };
+        break;
+      }
+      case 'saida_transf_intra': {
+        if (!mov.galpaoDestino) {
+          throw new Error(`Movimentacao ${mov.id} de transf_intra_cnpj sem galpao_destino`);
+        }
+        const r = await executarTransferenciaIntraDual(
+          {
+            opId: mov.opId,
+            produtoCodigoAcxe: Number(ap.produtoCodigoAcxe),
+            galpao: ap.galpao,
+            empresa: ap.empresa as 'acxe' | 'q2p',
+            quantidadeKg,
+            valorUnitario,
+            observacao: observacaoOmie,
+          },
+          mov.galpaoDestino,
+        );
+        resultadoOmie = { kind: 'dual', dual: r };
+        break;
+      }
+      case 'saida_comodato': {
+        // Comodato agora e dual (migration 0027 — TROCA criada no ACXE).
+        // empresa=q2p e mantida como "primaria" no schema mas a baixa fisica replica em ACXE.
+        const r = await executarComodatoOmieDual({
+          opId: mov.opId,
+          produtoCodigoAcxe: Number(ap.produtoCodigoAcxe),
+          galpao: ap.galpao,
+          empresa: 'q2p',
+          quantidadeKg,
+          valorUnitario,
+          observacao: observacaoOmie,
+        });
+        resultadoOmie = { kind: 'dual', dual: r };
+        break;
+      }
+      case 'retorno_comodato': {
+        // movimentacao linkada e a ENTRADA destino. Buscar BAIXA TROCA via origem.
+        if (!mov.movimentacaoOrigemId) {
+          throw new Error(`Movimentacao retorno ${mov.id} sem movimentacao_origem_id`);
+        }
+        const [movOrigem] = await db
+          .select()
+          .from(movimentacao)
+          .where(eq(movimentacao.id, mov.movimentacaoOrigemId))
+          .limit(1);
+        if (!movOrigem) throw new Error(`Comodato origem ${mov.movimentacaoOrigemId} nao encontrado`);
+        const [movBaixa] = await db
+          .select()
+          .from(movimentacao)
+          .where(
+            and(
+              eq(movimentacao.movimentacaoOrigemId, movOrigem.id),
+              eq(movimentacao.tipoMovimento, 'ajuste'),
+              eq(movimentacao.ativo, true),
+            ),
+          )
+          .limit(1);
+        if (!movBaixa) throw new Error(`Movimentacao de baixa do TROCA nao encontrada para origem ${movOrigem.id}`);
+
+        const valorOriginal = await consultarValorUnitarioProduto(
+          Number(movOrigem.produtoCodigoAcxe ?? 0),
+          movOrigem.galpao ?? '',
+          'q2p',
+        );
+
+        const r = await executarRetornoComodatoOmieDual({
+          opId: mov.opId,
+          produtoCodigoAcxeOriginal: Number(movOrigem.produtoCodigoAcxe ?? 0),
+          quantidadeKgOriginal: Math.abs(Number(movOrigem.quantidadeKg)),
+          valorUnitarioOriginal: valorOriginal,
+          produtoCodigoAcxeRecebido: Number(ap.produtoCodigoAcxe),
+          galpaoDestino: ap.galpao,
+          quantidadeKgRecebida: quantidadeKg,
+          valorUnitarioRecebido: valorUnitario,
+          observacao: observacaoOmie,
+        });
+        resultadoOmie = { kind: 'retorno_dual', acxe: r.acxe, q2p: r.q2p, pendenciaQ2p: r.pendenciaQ2p };
+
+        // Persistir baixa OMIE na movimentacao de baixa (4 ids: acxe.baixa, q2p.baixa)
+        const updateBaixa: Record<string, unknown> = { statusOmie: 'concluida', updatedAt: new Date() };
+        if (r.acxe) {
+          updateBaixa.idMovestAcxe = r.acxe.baixa.idMovest;
+          updateBaixa.idAjusteAcxe = r.acxe.baixa.idAjuste;
+          updateBaixa.mvAcxe = -1;
+          updateBaixa.dtAcxe = new Date();
+          updateBaixa.idUserAcxe = input.usuarioId;
+        }
+        if (r.q2p) {
+          updateBaixa.idMovestQ2p = r.q2p.baixa.idMovest;
+          updateBaixa.idAjusteQ2p = r.q2p.baixa.idAjuste;
+          updateBaixa.mvQ2p = -1;
+          updateBaixa.dtQ2p = new Date();
+          updateBaixa.idUserQ2p = input.usuarioId;
+        }
+        await db.update(movimentacao).set(updateBaixa).where(eq(movimentacao.id, movBaixa.id));
+        break;
+      }
+      default:
+        throw new Error(`Tipo ${ap.tipoAprovacao} nao implementado em aprovarSaidaManual`);
+    }
+  } catch (err) {
+    logger.error({ err, aprovacaoId: ap.id, tipo: ap.tipoAprovacao }, 'OMIE falhou ao aprovar saida manual');
+    throw err;
+  }
+
+  // Persistencia: aprovacao + movimentacao + reserva (em transacao)
+  const sinalMv = ap.tipoAprovacao === 'retorno_comodato' ? 1 : -1;
+  await db.transaction(async (tx) => {
+    const [apFresh] = await tx.select().from(aprovacao).where(eq(aprovacao.id, ap.id)).limit(1);
+    if (!apFresh) throw new AprovacaoNaoEncontradaError(ap.id);
+    if (apFresh.status !== 'pendente') throw new AprovacaoStatusInvalidoError(ap.id, apFresh.status);
+
+    await tx
+      .update(aprovacao)
+      .set({ status: 'aprovada', aprovadoPor: input.usuarioId, aprovadoEm: new Date() })
+      .where(eq(aprovacao.id, ap.id));
+
+    // Monta update da movimentacao conforme tipo de resultado OMIE
+    const updateMov: Record<string, unknown> = { updatedAt: new Date() };
+
+    if (resultadoOmie.kind === 'dual') {
+      const d = resultadoOmie.dual;
+      if (d.acxe) {
+        updateMov.mvAcxe = sinalMv;
+        updateMov.dtAcxe = new Date();
+        updateMov.idMovestAcxe = d.acxe.idMovest;
+        updateMov.idAjusteAcxe = d.acxe.idAjuste;
+        updateMov.idUserAcxe = input.usuarioId;
+      }
+      if (d.q2p) {
+        updateMov.mvQ2p = sinalMv;
+        updateMov.dtQ2p = new Date();
+        updateMov.idMovestQ2p = d.q2p.idMovest;
+        updateMov.idAjusteQ2p = d.q2p.idAjuste;
+        updateMov.idUserQ2p = input.usuarioId;
+      }
+      updateMov.statusOmie = d.pendenciaQ2p ? 'pendente_q2p' : 'concluida';
+      if (d.pendenciaQ2p) {
+        updateMov.ultimoErroOmie = {
+          lado: 'q2p',
+          mensagem: d.pendenciaQ2p.mensagem,
+          timestamp: new Date().toISOString(),
+        };
+        updateMov.tentativasQ2p = 1;
+      }
+    } else if (resultadoOmie.kind === 'retorno_dual') {
+      // movimentacao linkada e a ENTRADA destino
+      if (resultadoOmie.acxe) {
+        updateMov.mvAcxe = 1;
+        updateMov.dtAcxe = new Date();
+        updateMov.idMovestAcxe = resultadoOmie.acxe.entrada.idMovest;
+        updateMov.idAjusteAcxe = resultadoOmie.acxe.entrada.idAjuste;
+        updateMov.idUserAcxe = input.usuarioId;
+      }
+      if (resultadoOmie.q2p) {
+        updateMov.mvQ2p = 1;
+        updateMov.dtQ2p = new Date();
+        updateMov.idMovestQ2p = resultadoOmie.q2p.entrada.idMovest;
+        updateMov.idAjusteQ2p = resultadoOmie.q2p.entrada.idAjuste;
+        updateMov.idUserQ2p = input.usuarioId;
+      }
+      updateMov.statusOmie = resultadoOmie.pendenciaQ2p ? 'pendente_q2p' : 'concluida';
+      if (resultadoOmie.pendenciaQ2p) {
+        updateMov.ultimoErroOmie = {
+          lado: 'q2p',
+          mensagem: resultadoOmie.pendenciaQ2p.mensagem,
+          timestamp: new Date().toISOString(),
+        };
+        updateMov.tentativasQ2p = 1;
+      }
+    }
+
+    await tx.update(movimentacao).set(updateMov).where(eq(movimentacao.id, ap.movimentacaoId!));
+
+    // Marca reserva como consumida (se houver — retorno_comodato nao tem reserva)
+    await tx
+      .update(reservaSaldo)
+      .set({ status: 'consumida', resolvidoEm: new Date() })
+      .where(and(eq(reservaSaldo.movimentacaoId, ap.movimentacaoId!), eq(reservaSaldo.status, 'ativa')));
+  });
+
+  logger.info(
+    { aprovacaoId: ap.id, tipo: ap.tipoAprovacao, resultadoOmie },
+    'Saida manual aprovada e baixada no OMIE',
+  );
+
+  // Notifica operador (fora da tx)
+  await enviarNotificacaoAprovacaoOperador({
+    operadorUserId: ap.lancadoPor,
+    aprovacaoId: ap.id,
+    tipoAprovacao: ap.tipoAprovacao,
+    loteId: ap.loteId ?? ap.movimentacaoId!,
+  }).catch((err) => logger.error({ err }, 'Falha ao notificar aprovacao saida manual'));
+
+  return { id: ap.id, loteStatus: 'reconciliado' };
+}
+
+/**
+ * Resolve valor unitario (BRL/kg) de um SKU em um galpao+empresa.
+ * Usa media ponderada de vw_posicaoEstoqueUnificadaFamilia.valor_unitario
+ * sobre saldo. Se nao achar, retorna 0 — saida ainda e debitada (OMIE aceita
+ * valor=0 como ajuste sem custo).
+ */
+async function consultarValorUnitarioProduto(
+  produtoCodigoAcxe: number,
+  galpao: string,
+  empresa: 'acxe' | 'q2p',
+): Promise<number> {
+  const db = getDb();
+  const filtroEmp =
+    empresa === 'acxe'
+      ? `(o.codigo_estoque LIKE '%.1' AND o.empresa = 'ACXE')`
+      : `((o.codigo_estoque LIKE '%.1' OR o.codigo_estoque LIKE '%.2') AND o.empresa = 'Q2P')`;
+
+  const result = await db.execute<{ vu: string | null }>(sql`
+    WITH desc_sku AS (
+      SELECT descricao FROM public."tbl_produtos_ACXE"
+      WHERE codigo_produto = ${produtoCodigoAcxe}::bigint
+      LIMIT 1
+    )
+    SELECT (
+      CASE WHEN SUM(o.saldo) > 0
+        THEN SUM(o.saldo * o.valor_unitario) / SUM(o.saldo)
+        ELSE 0
+      END
+    )::text AS vu
+    FROM public."vw_posicaoEstoqueUnificadaFamilia" o
+    INNER JOIN desc_sku d ON d.descricao = o.descricao_produto
+    WHERE o.saldo > 0
+      AND split_part(o.codigo_estoque, '.', 1) = ${galpao}
+      AND ${sql.raw(filtroEmp)}
+  `);
+  const v = result.rows[0]?.vu;
+  return v ? Number(v) : 0;
 }
 
 function checarNivel(perfil: Perfil, nivelRequerido: 'gestor' | 'diretor'): void {

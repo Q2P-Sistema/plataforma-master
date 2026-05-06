@@ -112,7 +112,7 @@ export async function listarPorEstagio(perfil: Perfil): Promise<Record<EstagioTr
         AND l.estagio_transito IN (${placeholders})
       ORDER BY fup.eta NULLS LAST, l.codigo
       `,
-      estagios,
+      [...estagios],
     )
     .catch((err) => {
       logger.warn({ err: err.message }, 'Query de transito falhou');

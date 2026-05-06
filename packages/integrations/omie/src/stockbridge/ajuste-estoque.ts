@@ -1,8 +1,13 @@
 import { callOmie, isMockMode, type OmieCnpj } from '../client.js';
 import { mockIncluirAjusteEstoque } from './mock.js';
 
-export type AjusteTipo = 'TRF' | 'ENT';
-export type AjusteMotivo = 'TRF' | 'INI';
+// Tipos OMIE IncluirAjusteEstoque (estoque/ajuste/):
+//   ENT — entrada no estoque (motivos: INV, OPE, PDV, INI)
+//   SAI — saida do estoque, debit sem destino (motivos: INV, PER, OPS, PDV)
+//   SLD — ajuste de saldo (motivos: INV, INI, CMC, PDV)
+//   TRF — transferencia entre locais, requer codigoLocalEstoqueDestino (motivos: TPQ, TRF)
+export type AjusteTipo = 'TRF' | 'ENT' | 'SAI' | 'SLD';
+export type AjusteMotivo = 'TRF' | 'INI' | 'INV' | 'PER' | 'OPS' | 'OPE' | 'PDV' | 'CMC' | 'TPQ';
 export type AjusteOrigem = 'AJU';
 
 export interface IncluirAjusteEstoqueInput {

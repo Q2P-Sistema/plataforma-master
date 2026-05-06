@@ -1,6 +1,6 @@
 import { sendEmail, createLogger, getConfig, getDb } from '@atlas/core';
-import { users } from '@atlas/db';
-import { eq } from 'drizzle-orm';
+import { users, userModules } from '@atlas/db';
+import { eq, inArray, and, isNull } from 'drizzle-orm';
 
 const logger = createLogger('stockbridge:notificacao');
 
@@ -9,6 +9,50 @@ const ADMIN_FALLBACK_EMAIL = 'admin@atlas.local';
 function getAdminEmail(): string {
   const config = getConfig();
   return config.SEED_ADMIN_EMAIL ?? ADMIN_FALLBACK_EMAIL;
+}
+
+/**
+ * Resolve emails dos usuarios ATIVOS com perfil compativel + acesso ao modulo.
+ *  - nivel='gestor':  gestor + diretor (diretor tambem ve pendencias de gestor)
+ *  - nivel='diretor': so diretor
+ *
+ * Filtros aplicados:
+ *  - users.status = 'active'
+ *  - users.deleted_at IS NULL
+ *  - users.role IN (...)
+ *  - INNER JOIN atlas.user_modules WHERE module_key = 'stockbridge'
+ *  - flag global MODULE_STOCKBRIDGE_ENABLED tambem deve estar true
+ *
+ * Cai no email do admin se nada for encontrado.
+ */
+async function resolverEmailsAprovadores(nivel: 'gestor' | 'diretor'): Promise<string[]> {
+  const config = getConfig();
+  if (!config.MODULE_STOCKBRIDGE_ENABLED) {
+    logger.warn({ nivel }, 'Modulo StockBridge desabilitado — nao envia notificacao');
+    return [];
+  }
+
+  const db = getDb();
+  const roles: ('gestor' | 'diretor')[] = nivel === 'diretor' ? ['diretor'] : ['gestor', 'diretor'];
+  try {
+    const rows = await db
+      .select({ email: users.email })
+      .from(users)
+      .innerJoin(userModules, eq(userModules.userId, users.id))
+      .where(
+        and(
+          inArray(users.role, roles),
+          eq(users.status, 'active'),
+          isNull(users.deletedAt),
+          eq(userModules.moduleKey, 'stockbridge'),
+        ),
+      );
+    const emails = [...new Set(rows.map((r) => r.email).filter((e): e is string => !!e))];
+    return emails.length > 0 ? emails : [getAdminEmail()];
+  } catch (err) {
+    logger.warn({ err, nivel }, 'Falha ao resolver emails de aprovadores — fallback admin');
+    return [getAdminEmail()];
+  }
 }
 
 /**
@@ -92,18 +136,27 @@ export async function enviarAlertaAprovacaoPendente(args: {
   quantidadeKg: number;
   detalhes?: string;
 }): Promise<void> {
-  const to = getAdminEmail(); // v1: envia ao admin; refinar com lista de gestores/diretores depois
+  const destinatarios = await resolverEmailsAprovadores(args.nivel);
+  const config = getConfig();
+  const linkPainel = `${config.APP_URL ?? ''}/stockbridge/aprovacoes`;
   const subject = `StockBridge — Aprovacao pendente (${args.nivel}) — ${args.tipoAprovacao}`;
   const html = `
     <h2 style="color: #D97706;">Nova pendencia de aprovacao</h2>
     <p><strong>Tipo:</strong> ${args.tipoAprovacao}</p>
-    <p><strong>Lote:</strong> ${args.loteCodigo} — ${args.produto} (${args.quantidadeKg.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} kg)</p>
+    <p><strong>Item:</strong> ${args.loteCodigo} — ${args.produto} (${args.quantidadeKg.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} kg)</p>
     ${args.detalhes ? `<p><strong>Detalhes:</strong> ${args.detalhes}</p>` : ''}
-    <p>Acesse o painel de aprovacoes no StockBridge para revisar.</p>
+    <p style="margin:16px 0;">
+      <a href="${linkPainel}"
+         style="display:inline-block;padding:10px 20px;background:#0077cc;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;font-size:14px;">
+        Abrir aprovacoes pendentes →
+      </a>
+    </p>
     <p style="color:#888;font-size:11px;">Sistema Atlas — StockBridge</p>
   `;
   try {
-    await sendEmail({ to, subject, html });
+    // Envia 1 email por destinatario pra evitar vazar lista (To: ficaria visivel)
+    await Promise.allSettled(destinatarios.map((to) => sendEmail({ to, subject, html })));
+    logger.info({ aprovacaoId: args.aprovacaoId, destinatarios: destinatarios.length }, 'Alerta de aprovacao enviado');
   } catch (err) {
     logger.error({ err, args }, 'Falha ao enviar email de aprovacao pendente');
   }

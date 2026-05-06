@@ -7,6 +7,8 @@ export interface SidebarSubItem {
   name: string;
   path: string;
   icon: LucideIcon;
+  /** Quando > 0, mostra um badge vermelho ao lado do item (estilo notificacao). */
+  badge?: number | null;
 }
 
 export interface SidebarModule {
@@ -156,6 +158,11 @@ export function Sidebar({
                         >
                           <SubIcon size={14} className="shrink-0" />
                           <span className="truncate">{sub.name}</span>
+                          {sub.badge != null && sub.badge > 0 && (
+                            <span className="ml-auto inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 text-[10px] font-bold text-white bg-red-600 rounded-full">
+                              {sub.badge > 99 ? '99+' : sub.badge}
+                            </span>
+                          )}
                         </button>
                       );
                     })}

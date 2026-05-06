@@ -8,7 +8,12 @@ export interface MeuEstoqueItem {
   empresa: 'ACXE' | 'Q2P';
   codigoEstoque: string;
   descricaoEstoque: string;
+  /** Codigo OMIE da empresa em questao (text — pode ser 'PP-016'). */
   codigoProduto: string;
+  /** Codigo numerico ACXE (canonico no Atlas, usado pra config_produto, saidas, etc).
+   *  Resolvido via JOIN public.tbl_produtos_ACXE por descricao. Pode ser null
+   *  quando nao ha match — frontend deve esconder/desabilitar acoes nesse caso. */
+  codigoProdutoAcxe: number | null;
   descricaoProduto: string;
   descricaoFamilia: string | null;
   ncm: string | null;
@@ -80,21 +85,23 @@ export async function listarMeuEstoque(
 
   const sqlPrincipal = `
     SELECT
-      empresa,
-      codigo_estoque,
-      descricao_estoque,
-      codigo_produto,
-      descricao_produto,
-      descricao_familia,
-      ncm,
-      COALESCE(saldo, 0)         AS saldo_kg,
-      COALESCE(reservado, 0)     AS reservado_kg,
-      COALESCE(volume_total, 0)  AS volume_total_kg
-    FROM public."vw_posicaoEstoqueUnificadaFamilia"
-    WHERE saldo > 0
-      ${filtroGalpao}
-      AND ${condicaoPrincipal}
-    ORDER BY descricao_produto, codigo_estoque
+      v.empresa,
+      v.codigo_estoque,
+      v.descricao_estoque,
+      v.codigo_produto,
+      pa.codigo_produto AS codigo_produto_acxe,
+      v.descricao_produto,
+      v.descricao_familia,
+      v.ncm,
+      COALESCE(v.saldo, 0)         AS saldo_kg,
+      COALESCE(v.reservado, 0)     AS reservado_kg,
+      COALESCE(v.volume_total, 0)  AS volume_total_kg
+    FROM public."vw_posicaoEstoqueUnificadaFamilia" v
+    LEFT JOIN public."tbl_produtos_ACXE" pa ON pa.descricao = v.descricao_produto
+    WHERE v.saldo > 0
+      ${filtroGalpao.replace(/codigo_estoque/g, 'v.codigo_estoque')}
+      AND ${condicaoPrincipal.replace(/codigo_estoque/g, 'v.codigo_estoque').replace(/empresa/g, 'v.empresa')}
+    ORDER BY v.descricao_produto, v.codigo_estoque
   `;
 
   const paramsPrincipal = galpoes;
@@ -103,27 +110,29 @@ export async function listarMeuEstoque(
   // Sem filtro de galpao (sao globais por empresa). Filtro de empresa aplica.
   const sqlEspeciais = `
     SELECT
-      empresa,
-      codigo_estoque,
-      descricao_estoque,
-      codigo_produto,
-      descricao_produto,
-      descricao_familia,
-      ncm,
-      COALESCE(saldo, 0)         AS saldo_kg,
-      COALESCE(reservado, 0)     AS reservado_kg,
-      COALESCE(volume_total, 0)  AS volume_total_kg
-    FROM public."vw_posicaoEstoqueUnificadaFamilia"
-    WHERE saldo > 0
-      ${empresaFilter}
+      v.empresa,
+      v.codigo_estoque,
+      v.descricao_estoque,
+      v.codigo_produto,
+      pa.codigo_produto AS codigo_produto_acxe,
+      v.descricao_produto,
+      v.descricao_familia,
+      v.ncm,
+      COALESCE(v.saldo, 0)         AS saldo_kg,
+      COALESCE(v.reservado, 0)     AS reservado_kg,
+      COALESCE(v.volume_total, 0)  AS volume_total_kg
+    FROM public."vw_posicaoEstoqueUnificadaFamilia" v
+    LEFT JOIN public."tbl_produtos_ACXE" pa ON pa.descricao = v.descricao_produto
+    WHERE v.saldo > 0
+      ${empresaFilter.replace(/empresa/g, 'v.empresa')}
       AND (
         ${ESPECIAIS.map(e =>
           e.empresa
-            ? `(codigo_estoque = '${e.codigo}' AND empresa = '${e.empresa}')`
-            : `codigo_estoque = '${e.codigo}'`,
+            ? `(v.codigo_estoque = '${e.codigo}' AND v.empresa = '${e.empresa}')`
+            : `v.codigo_estoque = '${e.codigo}'`,
         ).join(' OR ')}
       )
-    ORDER BY descricao_estoque, descricao_produto
+    ORDER BY v.descricao_estoque, v.descricao_produto
   `;
 
   const [resPrincipal, resEspeciais] = await Promise.all([
@@ -150,6 +159,7 @@ function toItem(r: Record<string, unknown>): MeuEstoqueItem {
     codigoEstoque: String(r.codigo_estoque),
     descricaoEstoque: String(r.descricao_estoque ?? ''),
     codigoProduto: String(r.codigo_produto ?? ''),
+    codigoProdutoAcxe: r.codigo_produto_acxe != null ? Number(r.codigo_produto_acxe) : null,
     descricaoProduto: String(r.descricao_produto ?? ''),
     descricaoFamilia: (r.descricao_familia as string | null) ?? null,
     ncm: (r.ncm as string | null) ?? null,

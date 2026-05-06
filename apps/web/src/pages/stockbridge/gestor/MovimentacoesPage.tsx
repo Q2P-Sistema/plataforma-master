@@ -17,10 +17,26 @@ interface Movimentacao {
   quantidadeKg: number;
   loteCodigo: string | null;
   observacoes: string | null;
+  produtoCodigoAcxe: number | null;
+  produtoDescricao: string | null;
+  galpao: string | null;
+  empresa: 'acxe' | 'q2p' | null;
+  criadoPor: { id: string | null; nome: string | null };
+  aprovadoPor: { id: string | null; nome: string | null; em: string | null };
+  statusOmie: string | null;
   ladoAcxe: LadoCnpj;
   ladoQ2p: LadoCnpj;
   createdAt: string;
 }
+
+const GALPAO_LABELS: Record<string, string> = {
+  '11': 'Santo André — Galpão A',
+  '12': 'Santo André — Galpão B',
+  '13': 'Santo André — Galpão C',
+  '21': 'Extrema',
+  '31': 'Armazém Externo (ATN)',
+};
+const labelGalpao = (g: string) => GALPAO_LABELS[g] ?? `Galpão ${g}`;
 
 const TIPO_COLOR: Record<string, string> = {
   entrada_nf: 'bg-green-50 text-green-700 border-green-200',
@@ -46,18 +62,23 @@ function useApiFetch() {
 
 export function MovimentacoesPage() {
   const apiFetch = useApiFetch();
+  const role = useAuthStore((s) => s.user?.role) ?? 'operador';
   const [page, setPage] = useState(1);
   const [filtroTipo, setFiltroTipo] = useState('');
+  const [filtroSubtipo, setFiltroSubtipo] = useState('');
   const [filtroNf, setFiltroNf] = useState('');
   const [filtroCnpj, setFiltroCnpj] = useState<'' | 'acxe' | 'q2p' | 'ambos'>('');
+  const [apenasMinhas, setApenasMinhas] = useState(role === 'operador');
 
   const { data, isLoading, error } = useQuery<{ items: Movimentacao[]; total: number }>({
-    queryKey: ['sb', 'movimentacoes', page, filtroTipo, filtroNf, filtroCnpj],
+    queryKey: ['sb', 'movimentacoes', page, filtroTipo, filtroSubtipo, filtroNf, filtroCnpj, apenasMinhas],
     queryFn: async () => {
       const params = new URLSearchParams({ page: String(page), pageSize: '50' });
       if (filtroTipo) params.set('tipoMovimento', filtroTipo);
+      if (filtroSubtipo) params.set('subtipo', filtroSubtipo);
       if (filtroNf) params.set('nf', filtroNf);
       if (filtroCnpj) params.set('cnpj', filtroCnpj);
+      if (apenasMinhas) params.set('apenasMinhas', 'true');
       const body = await apiFetch(`/api/v1/stockbridge/movimentacoes?${params}`);
       return { items: body.data as Movimentacao[], total: body.meta?.total ?? 0 };
     },
@@ -83,7 +104,7 @@ export function MovimentacoesPage() {
         />
         <select
           value={filtroTipo}
-          onChange={(e) => { setPage(1); setFiltroTipo(e.target.value); }}
+          onChange={(e) => { setPage(1); setFiltroTipo(e.target.value); setFiltroSubtipo(''); }}
           className="px-3 py-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-900 rounded text-sm"
         >
           <option value="">Todos os tipos</option>
@@ -95,6 +116,21 @@ export function MovimentacoesPage() {
           <option value="regularizacao_fiscal">Regularização fiscal</option>
           <option value="ajuste">Ajuste</option>
         </select>
+        {filtroTipo === 'saida_manual' && (
+          <select
+            value={filtroSubtipo}
+            onChange={(e) => { setPage(1); setFiltroSubtipo(e.target.value); }}
+            className="px-3 py-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-900 rounded text-sm"
+          >
+            <option value="">Todos subtipos</option>
+            <option value="transf_intra_cnpj">Transferência intra-CNPJ</option>
+            <option value="comodato">Comodato</option>
+            <option value="amostra">Amostra</option>
+            <option value="descarte">Descarte</option>
+            <option value="quebra">Quebra</option>
+            <option value="inventario_menos">Inventário (-)</option>
+          </select>
+        )}
         <select
           value={filtroCnpj}
           onChange={(e) => { setPage(1); setFiltroCnpj(e.target.value as '' | 'acxe' | 'q2p' | 'ambos'); }}
@@ -105,6 +141,17 @@ export function MovimentacoesPage() {
           <option value="q2p">Só Q2P</option>
           <option value="ambos">Ambos (dual)</option>
         </select>
+        {role !== 'operador' && (
+          <label className="flex items-center gap-1.5 px-3 py-2 border border-slate-300 dark:border-slate-600 rounded text-sm cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800">
+            <input
+              type="checkbox"
+              checked={apenasMinhas}
+              onChange={(e) => { setPage(1); setApenasMinhas(e.target.checked); }}
+              className="rounded"
+            />
+            Apenas minhas
+          </label>
+        )}
       </div>
 
       {error && (
@@ -128,19 +175,29 @@ export function MovimentacoesPage() {
               <thead className="bg-slate-50 dark:bg-slate-900/40 text-atlas-muted">
                 <tr>
                   <th className="text-left px-3 py-2">Data</th>
-                  <th className="text-left px-3 py-2">NF</th>
+                  <th className="text-left px-3 py-2">Produto</th>
                   <th className="text-left px-3 py-2">Tipo</th>
                   <th className="text-right px-3 py-2">Qtd (kg)</th>
-                  <th className="text-left px-3 py-2">Lote</th>
-                  <th className="text-left px-3 py-2">ACXE</th>
-                  <th className="text-left px-3 py-2">Q2P</th>
+                  <th className="text-left px-3 py-2">Lote / Galpão</th>
+                  <th className="text-left px-3 py-2">Lançado por</th>
+                  <th className="text-left px-3 py-2">Aprovado por</th>
+                  <th className="text-left px-3 py-2">Status OMIE</th>
                 </tr>
               </thead>
               <tbody>
                 {data.items.map((m) => (
                   <tr key={m.id} className="border-t border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-900/30">
                     <td className="px-3 py-2 text-atlas-muted">{new Date(m.createdAt).toLocaleString('pt-BR')}</td>
-                    <td className="px-3 py-2 font-mono text-[11px]">{m.notaFiscal}</td>
+                    <td className="px-3 py-2 text-[11px]">
+                      {m.produtoDescricao ? (
+                        <div>
+                          <div className="text-atlas-ink font-medium">{m.produtoDescricao}</div>
+                          <div className="text-atlas-muted text-[10px] font-mono">{m.notaFiscal}</div>
+                        </div>
+                      ) : (
+                        <span className="font-mono">{m.notaFiscal}</span>
+                      )}
+                    </td>
                     <td className="px-3 py-2">
                       <span className={`text-[10px] px-2 py-0.5 rounded border ${TIPO_COLOR[m.tipoMovimento] ?? 'bg-slate-50 text-slate-700 border-slate-200'}`}>
                         {m.tipoMovimento}{m.subtipo ? ` · ${m.subtipo}` : ''}
@@ -149,23 +206,42 @@ export function MovimentacoesPage() {
                     <td className={`px-3 py-2 text-right font-serif ${m.quantidadeKg >= 0 ? 'text-green-700' : 'text-red-700'}`}>
                       {m.quantidadeKg > 0 ? '+' : ''}{m.quantidadeKg.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} kg
                     </td>
-                    <td className="px-3 py-2 font-mono text-[11px] text-atlas-muted">{m.loteCodigo ?? '—'}</td>
-                    <td className="px-3 py-2">
-                      {m.ladoAcxe.status ? (
-                        <div className="text-[11px]">
-                          <div className={m.ladoAcxe.status === 'Sucesso' ? 'text-green-700' : 'text-red-700'}>{m.ladoAcxe.status}</div>
-                          <div className="text-atlas-muted">{m.ladoAcxe.usuario ?? '—'}</div>
+                    <td className="px-3 py-2 text-[11px] text-atlas-muted">
+                      {m.loteCodigo ? (
+                        <span className="font-mono">{m.loteCodigo}</span>
+                      ) : m.galpao ? (
+                        <div>
+                          <div>{labelGalpao(m.galpao)}</div>
+                          {m.empresa && <div className="text-[10px]">{m.empresa.toUpperCase()}</div>}
+                        </div>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-[11px]">{m.criadoPor.nome ?? '—'}</td>
+                    <td className="px-3 py-2 text-[11px]">
+                      {m.aprovadoPor.nome ? (
+                        <div>
+                          <div>{m.aprovadoPor.nome}</div>
+                          {m.aprovadoPor.em && (
+                            <div className="text-[10px] text-atlas-muted">
+                              {new Date(m.aprovadoPor.em).toLocaleString('pt-BR')}
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <span className="text-atlas-muted">—</span>
                       )}
                     </td>
                     <td className="px-3 py-2">
-                      {m.ladoQ2p.status ? (
-                        <div className="text-[11px]">
-                          <div className={m.ladoQ2p.status === 'Sucesso' ? 'text-green-700' : 'text-red-700'}>{m.ladoQ2p.status}</div>
-                          <div className="text-atlas-muted">{m.ladoQ2p.usuario ?? '—'}</div>
-                        </div>
+                      {m.statusOmie === 'concluida' ? (
+                        <span className="text-[10px] px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded">Concluída</span>
+                      ) : m.statusOmie === 'pendente_q2p' ? (
+                        <span className="text-[10px] px-1.5 py-0.5 bg-amber-50 text-amber-700 rounded">Pendente</span>
+                      ) : m.statusOmie === 'pendente_acxe_faltando' ? (
+                        <span className="text-[10px] px-1.5 py-0.5 bg-amber-50 text-amber-700 rounded">Pend. ACXE</span>
+                      ) : m.statusOmie === 'falha' ? (
+                        <span className="text-[10px] px-1.5 py-0.5 bg-red-50 text-red-700 rounded">Falha</span>
                       ) : (
                         <span className="text-atlas-muted">—</span>
                       )}
