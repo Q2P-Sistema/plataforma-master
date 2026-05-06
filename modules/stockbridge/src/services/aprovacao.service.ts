@@ -104,9 +104,11 @@ export async function listarPendencias(perfil: Perfil): Promise<PendenciaItem[]>
     lancado_por: string;
     lancado_em: string;
     lote_codigo: string | null;
-    lote_produto_codigo_acxe: number | null;
+    // BIGINT volta como string do pg driver mesmo com schema mode='number'
+    // (db.execute usa raw SQL, ignora o typecast do schema). Forcar Number() no map.
+    lote_produto_codigo_acxe: string | null;
     lote_fornecedor_nome: string | null;
-    aprov_produto_codigo_acxe: number | null;
+    aprov_produto_codigo_acxe: string | null;
     aprov_galpao: string | null;
     aprov_empresa: string | null;
     produto_descricao: string | null;
@@ -151,7 +153,8 @@ export async function listarPendencias(perfil: Perfil): Promise<PendenciaItem[]>
     const previsto = r.quantidade_prevista_kg != null ? Number(r.quantidade_prevista_kg) : null;
     const recebido = r.quantidade_recebida_kg != null ? Number(r.quantidade_recebida_kg) : null;
     const delta = previsto != null && recebido != null ? Number((recebido - previsto).toFixed(3)) : null;
-    const codigoAcxe = r.aprov_produto_codigo_acxe ?? r.lote_produto_codigo_acxe ?? 0;
+    const codigoAcxeRaw = r.aprov_produto_codigo_acxe ?? r.lote_produto_codigo_acxe;
+    const codigoAcxe = codigoAcxeRaw != null ? Number(codigoAcxeRaw) : 0;
     const fornecedor = r.lote_fornecedor_nome ?? r.produto_descricao ?? `SKU ${codigoAcxe}`;
     return {
       id: r.id,
@@ -175,25 +178,33 @@ export async function listarPendencias(perfil: Perfil): Promise<PendenciaItem[]>
 
 export interface MinhaRejeicaoItem {
   id: string;
-  loteId: string;
-  loteCodigo: string;
+  /** Null para saidas manuais (ajuste, comodato, descarte, etc — migration 0026). */
+  loteId: string | null;
+  loteCodigo: string | null;
   tipoAprovacao: TipoAprovacao;
   motivoRejeicao: string;
   quantidadeRecebidaKg: number;
   produtoCodigoAcxe: number;
   fornecedor: string;
+  /** Apenas para saida manual sem lote. */
+  galpao: string | null;
+  empresa: 'acxe' | 'q2p' | null;
   lancadoEm: string;
   rejeitadoEm: string;
 }
 
 /**
- * Lista as aprovacoes rejeitadas que o operador (`userId`) lancou e que ele
- * tem direito de re-submeter.
+ * Lista as aprovacoes rejeitadas que o operador (`userId`) lancou.
+ *
+ * Cobre dois casos:
+ *  - Rejeicoes com lote (recebimento_divergencia): operador pode re-submeter.
+ *  - Rejeicoes sem lote (saida manual): apenas notificacao — operador re-lanca
+ *    do zero pela tela de origem (nao ha fluxo de re-submissao).
  *
  * Filtra rejeicoes "superadas": se ja existe uma aprovacao mais recente para o
- * mesmo lote (criada pelo proprio resubmeter), a rejeicao antiga e omitida
- * — ela continua na tabela para auditoria, so nao aparece pro operador como
- * pendencia de acao.
+ * mesmo lote (criada pelo proprio resubmeter), a rejeicao antiga e omitida.
+ * Saidas manuais nao tem como ser superadas — ficam visiveis ate envelhecerem
+ * 30 dias (corte arbitrario, evita inbox crescer indefinidamente).
  *
  * Ordena por mais recente primeiro.
  */
@@ -201,45 +212,70 @@ export async function listarMinhasRejeicoes(userId: string): Promise<MinhaRejeic
   const db = getDb();
   const rows = await db.execute<{
     id: string;
-    lote_id: string;
+    lote_id: string | null;
     tipo_aprovacao: string;
     quantidade_recebida_kg: string | null;
     rejeicao_motivo: string | null;
     // db.execute (raw sql) retorna timestamps como string ISO, nao Date.
     lancado_em: string;
     aprovado_em: string | null;
-    codigo: string;
-    produto_codigo_acxe: number;
-    fornecedor_nome: string;
+    lote_codigo: string | null;
+    // BIGINT volta como string do pg driver — converter no map.
+    lote_produto_codigo_acxe: string | null;
+    lote_fornecedor_nome: string | null;
+    aprov_produto_codigo_acxe: string | null;
+    aprov_galpao: string | null;
+    aprov_empresa: string | null;
+    produto_descricao: string | null;
   }>(sql`
     SELECT a.id, a.lote_id, a.tipo_aprovacao, a.quantidade_recebida_kg,
            a.rejeicao_motivo, a.lancado_em, a.aprovado_em,
-           l.codigo, l.produto_codigo_acxe, l.fornecedor_nome
+           l.codigo AS lote_codigo,
+           l.produto_codigo_acxe AS lote_produto_codigo_acxe,
+           l.fornecedor_nome AS lote_fornecedor_nome,
+           a.produto_codigo_acxe AS aprov_produto_codigo_acxe,
+           a.galpao AS aprov_galpao,
+           a.empresa AS aprov_empresa,
+           p.descricao AS produto_descricao
     FROM stockbridge.aprovacao a
-    INNER JOIN stockbridge.lote l ON l.id = a.lote_id
+    LEFT JOIN stockbridge.lote l ON l.id = a.lote_id
+    LEFT JOIN public."tbl_produtos_ACXE" p
+      ON p.codigo_produto = COALESCE(a.produto_codigo_acxe, l.produto_codigo_acxe)
     WHERE a.status = 'rejeitada'
       AND a.lancado_por = ${userId}::uuid
-      AND l.ativo = true
-      AND NOT EXISTS (
-        SELECT 1 FROM stockbridge.aprovacao a2
-        WHERE a2.lote_id = a.lote_id
-          AND a2.lancado_em > a.lancado_em
+      AND a.dispensada_em IS NULL
+      AND (a.lote_id IS NULL OR l.ativo = true)
+      AND (
+        a.lote_id IS NULL
+        OR NOT EXISTS (
+          SELECT 1 FROM stockbridge.aprovacao a2
+          WHERE a2.lote_id = a.lote_id
+            AND a2.lancado_em > a.lancado_em
+        )
       )
+      AND (a.lote_id IS NOT NULL OR a.aprovado_em > NOW() - INTERVAL '30 days')
     ORDER BY a.aprovado_em DESC NULLS LAST
   `);
 
-  return rows.rows.map((r) => ({
-    id: r.id,
-    loteId: r.lote_id,
-    loteCodigo: r.codigo,
-    tipoAprovacao: r.tipo_aprovacao as TipoAprovacao,
-    motivoRejeicao: r.rejeicao_motivo ?? '',
-    quantidadeRecebidaKg: r.quantidade_recebida_kg != null ? Number(r.quantidade_recebida_kg) : 0,
-    produtoCodigoAcxe: r.produto_codigo_acxe,
-    fornecedor: r.fornecedor_nome,
-    lancadoEm: new Date(r.lancado_em).toISOString(),
-    rejeitadoEm: new Date(r.aprovado_em ?? r.lancado_em).toISOString(),
-  }));
+  return rows.rows.map((r) => {
+    const codigoAcxeRaw = r.aprov_produto_codigo_acxe ?? r.lote_produto_codigo_acxe;
+    const codigoAcxe = codigoAcxeRaw != null ? Number(codigoAcxeRaw) : 0;
+    const fornecedor = r.lote_fornecedor_nome ?? r.produto_descricao ?? `SKU ${codigoAcxe}`;
+    return {
+      id: r.id,
+      loteId: r.lote_id,
+      loteCodigo: r.lote_codigo,
+      tipoAprovacao: r.tipo_aprovacao as TipoAprovacao,
+      motivoRejeicao: r.rejeicao_motivo ?? '',
+      quantidadeRecebidaKg: r.quantidade_recebida_kg != null ? Number(r.quantidade_recebida_kg) : 0,
+      produtoCodigoAcxe: codigoAcxe,
+      fornecedor,
+      galpao: r.aprov_galpao,
+      empresa: (r.aprov_empresa as 'acxe' | 'q2p' | null) ?? null,
+      lancadoEm: new Date(r.lancado_em).toISOString(),
+      rejeitadoEm: new Date(r.aprovado_em ?? r.lancado_em).toISOString(),
+    };
+  });
 }
 
 export interface AprovarInput {
@@ -608,7 +644,12 @@ export async function rejeitar(input: RejeitarInput): Promise<{ id: string }> {
       }
     }
 
-    return { operadorId: ap.lancadoPor, loteId: ap.loteId ?? ap.movimentacaoId ?? '' };
+    return {
+      operadorId: ap.lancadoPor,
+      loteId: ap.loteId ?? ap.movimentacaoId ?? '',
+      temLote: ap.loteId !== null,
+      tipoAprovacao: ap.tipoAprovacao,
+    };
   });
 
   logger.info({ aprovacaoId: input.id, perfilUsuario: input.perfilUsuario }, 'Aprovacao rejeitada');
@@ -619,6 +660,8 @@ export async function rejeitar(input: RejeitarInput): Promise<{ id: string }> {
     aprovacaoId: input.id,
     loteId: resultado.loteId,
     motivo: input.motivo,
+    fluxo: resultado.temLote ? 'recebimento' : 'saida_manual',
+    tipoAprovacao: resultado.tipoAprovacao,
   });
 
   return { id: input.id };
@@ -700,6 +743,41 @@ export async function resubmeter(input: ResubmeterInput): Promise<{ id: string; 
   });
 
   return { id: resultado.id, novaAprovacaoId: resultado.novaAprovacao.id };
+}
+
+/**
+ * Operador descarta uma rejeicao da propria caixa de entrada (migration 0029).
+ * - Apenas o usuario que lancou a aprovacao original pode dispensar.
+ * - So aprovacoes em status='rejeitada' podem ser dispensadas (auditoria
+ *   registra o UPDATE via trigger; status nao muda).
+ * - Idempotente: chamar de novo retorna ok sem efeito.
+ *
+ * Nao afeta a movimentacao linkada (que ja esta `ativo=false` desde a
+ * rejeicao) nem a reserva (ja `liberada`). Soft-dismiss apenas filtra a
+ * rejeicao do `listarMinhasRejeicoes`.
+ */
+export async function dispensarRejeicao(input: {
+  id: string;
+  usuarioId: string;
+}): Promise<{ id: string; jaEstavaDispensada: boolean }> {
+  const db = getDb();
+  const [ap] = await db.select().from(aprovacao).where(eq(aprovacao.id, input.id)).limit(1);
+  if (!ap) throw new AprovacaoNaoEncontradaError(input.id);
+  if (ap.lancadoPor !== input.usuarioId) {
+    throw new Error(`Apenas o operador que lancou pode dispensar a rejeicao ${input.id}`);
+  }
+  if (ap.status !== 'rejeitada') {
+    throw new AprovacaoStatusInvalidoError(input.id, ap.status);
+  }
+  if (ap.dispensadaEm !== null) {
+    return { id: input.id, jaEstavaDispensada: true };
+  }
+  await db
+    .update(aprovacao)
+    .set({ dispensadaEm: new Date() })
+    .where(eq(aprovacao.id, input.id));
+  logger.info({ aprovacaoId: input.id, usuarioId: input.usuarioId }, 'Rejeicao dispensada pelo operador');
+  return { id: input.id, jaEstavaDispensada: false };
 }
 
 /**

@@ -33,7 +33,10 @@ async function resolverEmailsAprovadores(nivel: 'gestor' | 'diretor'): Promise<s
   }
 
   const db = getDb();
-  const roles: ('gestor' | 'diretor')[] = nivel === 'diretor' ? ['diretor'] : ['gestor', 'diretor'];
+  // Cada nivel notifica apenas o proprio role (diretor *pode* aprovar tudo,
+  // mas nao quer email de cada saida_descarte/quebra/amostra do dia a dia —
+  // ele so e notificado quando a pendencia exige nivel='diretor' de fato).
+  const roles: ('gestor' | 'diretor')[] = nivel === 'diretor' ? ['diretor'] : ['gestor'];
   try {
     const rows = await db
       .select({ email: users.email })
@@ -229,6 +232,13 @@ export async function enviarNotificacaoRejeicaoOperador(args: {
   aprovacaoId: string;
   loteId: string;
   motivo: string;
+  /**
+   * Define qual pagina o link do email aponta:
+   *  - 'recebimento': /stockbridge/recebimento#rejeicao=<id> (re-submeter divergencia)
+   *  - 'saida_manual': /stockbridge/saida-manual#rejeicao=<id> (re-lancar saida)
+   */
+  fluxo: 'recebimento' | 'saida_manual';
+  tipoAprovacao: string;
 }): Promise<void> {
   const to = await resolverEmailOperador(args.operadorUserId);
   if (!to) {
@@ -237,23 +247,26 @@ export async function enviarNotificacaoRejeicaoOperador(args: {
   }
   const subject = `StockBridge — Seu lancamento foi rejeitado`;
   const config = getConfig();
-  const linkResubmeter = `${config.APP_URL}/stockbridge/recebimento#rejeicao=${args.aprovacaoId}`;
+  const paginaPath = args.fluxo === 'recebimento' ? '/stockbridge/recebimento' : '/stockbridge/saida-manual';
+  const paginaLabel = args.fluxo === 'recebimento' ? 'Recebimento' : 'Saída Manual';
+  const acaoLabel = args.fluxo === 'recebimento' ? 'Re-submeter agora' : 'Lançar novamente';
+  const link = `${config.APP_URL}${paginaPath}#rejeicao=${args.aprovacaoId}`;
   const html = `
     <h2 style="color: #dc3545;">Lancamento Rejeitado</h2>
-    <p>O gestor/diretor rejeitou um lancamento que voce fez no StockBridge.</p>
+    <p>O gestor/diretor rejeitou um lancamento (${args.tipoAprovacao}) que voce fez no StockBridge.</p>
     <p><strong>Motivo informado:</strong></p>
     <blockquote style="border-left:3px solid #dc3545;padding-left:12px;color:#555;margin:8px 0;">
       "${args.motivo}"
     </blockquote>
-    <p>Corrija os dados e re-submeta para nova aprovacao:</p>
+    <p>Corrija os dados e ${args.fluxo === 'recebimento' ? 're-submeta para nova aprovacao' : 'lance novamente'}:</p>
     <p style="margin:16px 0;">
-      <a href="${linkResubmeter}"
+      <a href="${link}"
          style="display:inline-block;padding:10px 20px;background:#0077cc;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;font-size:14px;">
-        Re-submeter agora →
+        ${acaoLabel} →
       </a>
     </p>
-    <p style="color:#888;font-size:11px;">Ou abra a tela de Recebimento no StockBridge e procure pela secao "Lancamentos rejeitados".</p>
-    <p style="color:#888;font-size:11px;">Aprovacao id: ${args.aprovacaoId} · Lote: ${args.loteId}</p>
+    <p style="color:#888;font-size:11px;">Ou abra a tela de ${paginaLabel} no StockBridge e procure pela secao "Lancamentos rejeitados".</p>
+    <p style="color:#888;font-size:11px;">Aprovacao id: ${args.aprovacaoId}</p>
     <p style="color:#888;font-size:11px;">Sistema Atlas — StockBridge</p>
   `;
   try {

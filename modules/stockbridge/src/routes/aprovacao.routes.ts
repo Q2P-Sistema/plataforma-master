@@ -8,6 +8,7 @@ import {
   aprovar,
   rejeitar,
   resubmeter,
+  dispensarRejeicao,
   AprovacaoNaoEncontradaError,
   AprovacaoNivelInsuficienteError,
   AprovacaoStatusInvalidoError,
@@ -118,6 +119,23 @@ router.post('/api/v1/stockbridge/aprovacoes/:id/resubmeter', requireOperador, as
     res.json({ data: result, error: null });
   } catch (err) {
     tratarErro(res, err, { role: (req.user?.role ?? 'gestor') as Perfil });
+  }
+});
+
+// POST /api/v1/stockbridge/aprovacoes/:id/dispensar — operador
+// Soft-dismiss da rejeicao na inbox do operador (migration 0029).
+router.post('/api/v1/stockbridge/aprovacoes/:id/dispensar', requireOperador, async (req: Request, res: Response) => {
+  const id = req.params.id as string | undefined;
+  const userId = req.user?.id;
+  if (!userId || !id) {
+    res.status(401).json({ data: null, error: { code: 'UNAUTHENTICATED', message: 'Sessao invalida' } });
+    return;
+  }
+  try {
+    const result = await dispensarRejeicao({ id, usuarioId: userId });
+    res.json({ data: result, error: null });
+  } catch (err) {
+    tratarErro(res, err, { role: (req.user?.role ?? 'operador') as Perfil });
   }
 });
 

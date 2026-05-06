@@ -186,6 +186,8 @@ export const aprovacao = stockbridgeSchema.table(
     galpao: text('galpao'),
     empresa: text('empresa').$type<'acxe' | 'q2p'>(),
     movimentacaoId: uuid('movimentacao_id'),
+    // Migration 0029: operador descarta rejeicao da inbox sem alterar status
+    dispensadaEm: timestamp('dispensada_em', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [

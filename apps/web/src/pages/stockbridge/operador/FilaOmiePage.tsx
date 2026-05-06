@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../../../stores/auth.store.js';
 import { ConferenciaModal } from './ConferenciaModal.js';
 import { ReSubmeterModal } from './ReSubmeterModal.js';
@@ -19,12 +19,15 @@ interface FilaItem {
 
 interface MinhaRejeicao {
   id: string;
-  loteId: string;
-  loteCodigo: string;
+  loteId: string | null;
+  loteCodigo: string | null;
+  tipoAprovacao: string;
   motivoRejeicao: string;
   quantidadeRecebidaKg: number;
   produtoCodigoAcxe: number;
   fornecedor: string;
+  galpao: string | null;
+  empresa: 'acxe' | 'q2p' | null;
   rejeitadoEm: string;
 }
 
@@ -50,18 +53,31 @@ function useApiFetch() {
 
 export function FilaOmiePage() {
   const apiFetch = useApiFetch();
+  const queryClient = useQueryClient();
   const [buscaNf, setBuscaNf] = useState('');
   const [buscaCnpj, setBuscaCnpj] = useState<'acxe' | 'q2p'>('acxe');
   const [queryKey, setQueryKey] = useState<{ nf?: string; cnpj?: string }>({});
   const [selecionado, setSelecionado] = useState<FilaItem | null>(null);
   const [resubmitendo, setResubmitendo] = useState<MinhaRejeicao | null>(null);
 
-  // Lista de lancamentos rejeitados que o operador pode re-submeter
+  // Lista de lancamentos de RECEBIMENTO rejeitados (com lote) — saidas manuais
+  // sem lote sao mostradas na pagina /stockbridge/saida-manual.
   const { data: rejeicoes = [], refetch: refetchRejeicoes } = useQuery<MinhaRejeicao[]>({
-    queryKey: ['stockbridge', 'minhas-rejeicoes'],
+    queryKey: ['stockbridge', 'minhas-rejeicoes', 'recebimento'],
     queryFn: async () => {
       const body = await apiFetch('/api/v1/stockbridge/aprovacoes/minhas-rejeicoes');
-      return body.data as MinhaRejeicao[];
+      const todas = body.data as MinhaRejeicao[];
+      return todas.filter((r) => r.loteId !== null);
+    },
+  });
+
+  // Soft-dismiss: tira a rejeicao da inbox sem mexer em status/audit (migration 0029).
+  const dispensarMut = useMutation({
+    mutationFn: async (rejeicaoId: string) =>
+      apiFetch(`/api/v1/stockbridge/aprovacoes/${rejeicaoId}/dispensar`, { method: 'POST' }),
+    onSuccess: () => {
+      refetchRejeicoes();
+      queryClient.invalidateQueries({ queryKey: ['stockbridge', 'minhas-rejeicoes', 'count'] });
     },
   });
 
@@ -211,7 +227,7 @@ export function FilaOmiePage() {
       {resubmitendo && (
         <ReSubmeterModal
           aprovacaoId={resubmitendo.id}
-          loteCodigo={resubmitendo.loteCodigo}
+          loteCodigo={resubmitendo.loteCodigo ?? ''}
           quantidadeOriginalKg={resubmitendo.quantidadeRecebidaKg}
           motivoRejeicao={resubmitendo.motivoRejeicao}
           onClose={() => setResubmitendo(null)}
@@ -225,10 +241,10 @@ export function FilaOmiePage() {
       {rejeicoes.length > 0 && (
         <div className="mt-8">
           <h2 className="text-lg font-serif text-atlas-ink mb-2">
-            Lançamentos rejeitados ({rejeicoes.length})
+            Recebimentos rejeitados ({rejeicoes.length})
           </h2>
           <p className="text-xs text-atlas-muted mb-3">
-            Lançamentos que foram rejeitados pelo gestor. Corrija e re-submeta para nova aprovação.
+            Recebimentos que foram rejeitados pelo gestor. Corrija e re-submeta para nova aprovação.
           </p>
           <div className="flex flex-col gap-2">
             {rejeicoes.map((r) => (
@@ -249,12 +265,26 @@ export function FilaOmiePage() {
                   {r.quantidadeRecebidaKg.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} kg<br />
                   rejeitado em {new Date(r.rejeitadoEm).toLocaleDateString('pt-BR')}
                 </div>
-                <button
-                  onClick={() => setResubmitendo(r)}
-                  className="px-3 py-1.5 bg-atlas-btn-bg text-atlas-btn-text rounded text-xs font-medium hover:opacity-90 whitespace-nowrap"
-                >
-                  Re-submeter →
-                </button>
+                <div className="flex flex-col gap-1.5 whitespace-nowrap">
+                  <button
+                    onClick={() => setResubmitendo(r)}
+                    disabled={dispensarMut.isPending}
+                    className="px-3 py-1.5 bg-atlas-btn-bg text-atlas-btn-text rounded text-xs font-medium hover:opacity-90"
+                  >
+                    Re-submeter →
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (confirm(`Descartar esta rejeição da sua caixa de entrada?\n\nO histórico permanece para auditoria — você só não vai ver mais aqui.`)) {
+                        dispensarMut.mutate(r.id);
+                      }
+                    }}
+                    disabled={dispensarMut.isPending}
+                    className="px-3 py-1.5 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded text-xs font-medium hover:bg-slate-50 dark:hover:bg-slate-800"
+                  >
+                    Descartar
+                  </button>
+                </div>
               </div>
             ))}
           </div>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Modal } from '@atlas/ui';
 import { useAuthStore } from '../../../stores/auth.store.js';
@@ -74,6 +74,13 @@ export function AprovacoesPage() {
   const queryClient = useQueryClient();
   const [rejeitando, setRejeitando] = useState<Pendencia | null>(null);
   const [motivoRejeicao, setMotivoRejeicao] = useState('');
+  const [feedback, setFeedback] = useState<{ tipo: 'sucesso' | 'erro'; texto: string } | null>(null);
+
+  useEffect(() => {
+    if (!feedback) return;
+    const t = setTimeout(() => setFeedback(null), 5000);
+    return () => clearTimeout(t);
+  }, [feedback]);
 
   const { data: pendencias = [], isLoading, error } = useQuery<Pendencia[]>({
     queryKey: ['stockbridge', 'aprovacoes'],
@@ -85,26 +92,61 @@ export function AprovacoesPage() {
   });
 
   const aprovarMut = useMutation({
-    mutationFn: async (id: string) =>
-      apiFetch(`/api/v1/stockbridge/aprovacoes/${id}/aprovar`, { method: 'POST' }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['stockbridge'] }),
+    mutationFn: async (p: Pendencia) =>
+      apiFetch(`/api/v1/stockbridge/aprovacoes/${p.id}/aprovar`, { method: 'POST' }).then((body) => ({
+        body,
+        pendencia: p,
+      })),
+    onSuccess: ({ pendencia }) => {
+      setFeedback({
+        tipo: 'sucesso',
+        texto: `✓ ${TIPO_LABEL[pendencia.tipoAprovacao] ?? pendencia.tipoAprovacao} aprovada — ${pendencia.produto.fornecedor}`,
+      });
+      queryClient.invalidateQueries({ queryKey: ['stockbridge'] });
+    },
+    onError: (err) => setFeedback({ tipo: 'erro', texto: `Erro ao aprovar: ${(err as Error).message}` }),
   });
 
   const rejeitarMut = useMutation({
-    mutationFn: async (args: { id: string; motivo: string }) =>
-      apiFetch(`/api/v1/stockbridge/aprovacoes/${args.id}/rejeitar`, {
+    mutationFn: async (args: { p: Pendencia; motivo: string }) =>
+      apiFetch(`/api/v1/stockbridge/aprovacoes/${args.p.id}/rejeitar`, {
         method: 'POST',
         body: JSON.stringify({ motivo: args.motivo }),
-      }),
-    onSuccess: () => {
+      }).then((body) => ({ body, pendencia: args.p })),
+    onSuccess: ({ pendencia }) => {
       setRejeitando(null);
       setMotivoRejeicao('');
+      setFeedback({
+        tipo: 'sucesso',
+        texto: `✓ ${TIPO_LABEL[pendencia.tipoAprovacao] ?? pendencia.tipoAprovacao} rejeitada — ${pendencia.produto.fornecedor}. Operador foi notificado por email.`,
+      });
       queryClient.invalidateQueries({ queryKey: ['stockbridge'] });
     },
+    onError: (err) => setFeedback({ tipo: 'erro', texto: `Erro ao rejeitar: ${(err as Error).message}` }),
   });
 
   return (
     <div className="p-6 max-w-6xl">
+      {feedback && (
+        <div
+          className={`fixed top-4 right-4 z-50 max-w-md p-4 rounded-lg shadow-lg border ${
+            feedback.tipo === 'sucesso'
+              ? 'bg-emerald-50 border-emerald-300 text-emerald-900 dark:bg-emerald-900/40 dark:border-emerald-700 dark:text-emerald-100'
+              : 'bg-red-50 border-red-300 text-red-900 dark:bg-red-900/40 dark:border-red-700 dark:text-red-100'
+          }`}
+        >
+          <div className="flex items-start gap-2">
+            <div className="flex-1 text-sm font-medium">{feedback.texto}</div>
+            <button
+              onClick={() => setFeedback(null)}
+              className="text-lg leading-none opacity-60 hover:opacity-100"
+              aria-label="Fechar"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
       <div className="mb-5">
         <h1 className="text-2xl font-serif text-atlas-ink mb-1">Aprovações Pendentes</h1>
         <p className="text-sm text-atlas-muted">
@@ -191,7 +233,7 @@ export function AprovacoesPage() {
                   Rejeitar
                 </button>
                 <button
-                  onClick={() => aprovarMut.mutate(p.id)}
+                  onClick={() => aprovarMut.mutate(p)}
                   disabled={aprovarMut.isPending || rejeitarMut.isPending}
                   className="px-4 py-1.5 bg-green-700 text-white rounded text-sm font-medium hover:opacity-90"
                 >
@@ -202,12 +244,6 @@ export function AprovacoesPage() {
           );
         })}
       </div>
-
-      {aprovarMut.isError && (
-        <div className="fixed bottom-4 right-4 p-3 bg-red-50 border border-red-300 rounded shadow-lg text-sm text-red-800">
-          Erro ao aprovar: {(aprovarMut.error as Error).message}
-        </div>
-      )}
 
       {rejeitando && (
         <Modal open title="Rejeitar pendência" onClose={() => setRejeitando(null)}>
@@ -223,7 +259,7 @@ export function AprovacoesPage() {
                 rows={3}
                 autoFocus
                 placeholder="Ex: Quantidade incorreta, solicitar reconferência"
-                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-900 rounded text-sm"
+                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded text-sm"
               />
             </div>
             {rejeitarMut.isError && (
@@ -232,9 +268,14 @@ export function AprovacoesPage() {
               </div>
             )}
             <div className="flex gap-2 justify-end">
-              <button onClick={() => setRejeitando(null)} className="px-4 py-2 border border-slate-300 rounded text-sm">Cancelar</button>
               <button
-                onClick={() => rejeitarMut.mutate({ id: rejeitando.id, motivo: motivoRejeicao })}
+                onClick={() => setRejeitando(null)}
+                className="px-4 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 rounded text-sm"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => rejeitarMut.mutate({ p: rejeitando, motivo: motivoRejeicao })}
                 disabled={!motivoRejeicao.trim() || rejeitarMut.isPending}
                 className={`px-5 py-2 rounded text-sm font-medium ${motivoRejeicao.trim() ? 'bg-red-700 text-white hover:opacity-90' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
               >

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../../../stores/auth.store.js';
 
@@ -87,6 +87,30 @@ interface SkuSelecionado {
   empresaUI: 'ACXE' | 'Q2P';
 }
 
+interface MinhaRejeicao {
+  id: string;
+  loteId: string | null;
+  loteCodigo: string | null;
+  tipoAprovacao: string;
+  motivoRejeicao: string;
+  quantidadeRecebidaKg: number;
+  produtoCodigoAcxe: number;
+  fornecedor: string;
+  galpao: string | null;
+  empresa: 'acxe' | 'q2p' | null;
+  rejeitadoEm: string;
+}
+
+const TIPO_APROVACAO_LABEL: Record<string, string> = {
+  saida_transf_intra: 'Transferência intra-CNPJ',
+  saida_comodato: 'Comodato',
+  saida_amostra: 'Amostra/Brinde',
+  saida_descarte: 'Descarte/Perda',
+  saida_quebra: 'Quebra técnica',
+  ajuste_inventario: 'Ajuste de inventário',
+  retorno_comodato: 'Retorno de Comodato',
+};
+
 export function SaidaManualPage() {
   const apiFetch = useApiFetch();
   const queryClient = useQueryClient();
@@ -94,6 +118,9 @@ export function SaidaManualPage() {
   const [galpaoSelecionado, setGalpaoSelecionado] = useState<string>('');
   const [busca, setBusca] = useState('');
   const [skuModal, setSkuModal] = useState<SkuSelecionado | null>(null);
+  // Quando o modal foi aberto via "Lancar novamente" de uma rejeicao, guarda
+  // o id pra dispensar automaticamente apos o sucesso da nova saida.
+  const [rejeicaoOrigemId, setRejeicaoOrigemId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ tipo: 'sucesso' | 'erro'; texto: string } | null>(null);
 
   const empresaUI = empresa === 'acxe' ? 'ACXE' : 'Q2P';
@@ -112,6 +139,69 @@ export function SaidaManualPage() {
       return r.data as MeuEstoqueResponse;
     },
   });
+
+  // Saidas manuais rejeitadas pelo operador (sem lote — comodato/ajuste/descarte/etc).
+  // Mesmo modelo da FilaOmiePage para recebimento divergente.
+  const { data: rejeicoes = [] } = useQuery<MinhaRejeicao[]>({
+    queryKey: ['sb', 'minhas-rejeicoes', 'saida-manual'],
+    queryFn: async () => {
+      const r = await apiFetch('/api/v1/stockbridge/aprovacoes/minhas-rejeicoes');
+      const todas = r.data as MinhaRejeicao[];
+      return todas.filter((it) => it.loteId === null);
+    },
+  });
+
+  // Soft-dismiss: tira a rejeicao da inbox sem mexer em status/audit (migration 0029).
+  const dispensarMut = useMutation({
+    mutationFn: async (rejeicaoId: string) =>
+      apiFetch(`/api/v1/stockbridge/aprovacoes/${rejeicaoId}/dispensar`, { method: 'POST' }),
+    onSuccess: () => {
+      // Atualiza tanto a lista local quanto o contador da sidebar.
+      queryClient.invalidateQueries({ queryKey: ['sb', 'minhas-rejeicoes', 'saida-manual'] });
+      queryClient.invalidateQueries({ queryKey: ['stockbridge', 'minhas-rejeicoes', 'count'] });
+    },
+    onError: (err) =>
+      setFeedback({ tipo: 'erro', texto: `Erro ao descartar: ${(err as Error).message}` }),
+  });
+
+  // Re-lanca uma saida rejeitada: seta filtros + abre modal pre-populado.
+  // Nao "edita" a rejeicao — cria uma saida nova do zero (a rejeicao fica
+  // arquivada com status='rejeitada' para auditoria). Apos o sucesso da nova
+  // saida, dispensa automaticamente a rejeicao original (vide onSucessoSaida).
+  const handleRelancarRejeicao = (r: MinhaRejeicao) => {
+    if (!r.galpao || !r.empresa) return;
+    setEmpresa(r.empresa);
+    setGalpaoSelecionado(r.galpao);
+    setRejeicaoOrigemId(r.id);
+    setSkuModal({
+      produtoCodigoAcxe: r.produtoCodigoAcxe,
+      descricaoProduto: r.fornecedor,
+      saldoOmieKg: 0, // saldoQuery dentro do modal vai buscar o real
+      galpao: r.galpao,
+      empresa: r.empresa,
+      empresaUI: r.empresa === 'acxe' ? 'ACXE' : 'Q2P',
+    });
+  };
+
+  // Auto-abrir o modal quando o email manda o operador para
+  // /stockbridge/saida-manual#rejeicao=<id>. Mesmo guard pattern da FilaOmiePage.
+  const hashHandledRef = useRef(false);
+  useEffect(() => {
+    if (hashHandledRef.current || rejeicoes.length === 0) return;
+    const hash = window.location.hash;
+    const match = hash.match(/^#rejeicao=([0-9a-f-]{36})$/i);
+    if (!match) {
+      hashHandledRef.current = true;
+      return;
+    }
+    const targetId = match[1]!.toLowerCase();
+    const target = rejeicoes.find((r) => r.id.toLowerCase() === targetId);
+    if (target) {
+      hashHandledRef.current = true;
+      handleRelancarRejeicao(target);
+      history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
+  }, [rejeicoes]);
 
   // Auto-seleciona primeiro galpao quando carrega
   useEffect(() => {
@@ -172,6 +262,12 @@ export function SaidaManualPage() {
     });
     queryClient.invalidateQueries({ queryKey: ['sb', 'saida-manual'] });
     queryClient.invalidateQueries({ queryKey: ['sb', 'meu-estoque'] });
+    // Se o operador re-lancou a partir de uma rejeicao, dispensa a antiga
+    // automaticamente — ela cumpriu seu papel (avisar) e nao deve mais aparecer.
+    if (rejeicaoOrigemId) {
+      dispensarMut.mutate(rejeicaoOrigemId);
+      setRejeicaoOrigemId(null);
+    }
   };
 
   return (
@@ -314,7 +410,79 @@ export function SaidaManualPage() {
         </div>
       )}
 
-      {skuModal && <SaidaManualModal sku={skuModal} onClose={() => setSkuModal(null)} onSuccess={onSucessoSaida} galpoesDisponiveis={meuEstoque.data?.galpoes ?? []} />}
+      {skuModal && (
+        <SaidaManualModal
+          sku={skuModal}
+          onClose={() => {
+            setSkuModal(null);
+            setRejeicaoOrigemId(null);
+          }}
+          onSuccess={onSucessoSaida}
+          galpoesDisponiveis={meuEstoque.data?.galpoes ?? []}
+        />
+      )}
+
+      {rejeicoes.length > 0 && (
+        <div className="mt-8">
+          <h2 className="text-lg font-serif text-atlas-ink mb-2">
+            Lançamentos rejeitados ({rejeicoes.length})
+          </h2>
+          <p className="text-xs text-atlas-muted mb-3">
+            Saídas que foram rejeitadas pelo gestor. Ajuste o que for necessário e lance novamente.
+          </p>
+          <div className="flex flex-col gap-2">
+            {rejeicoes.map((r) => (
+              <div
+                key={r.id}
+                className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 flex items-center gap-3"
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-baseline gap-2 mb-0.5 flex-wrap">
+                    <span className="text-xs font-semibold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-700">
+                      {TIPO_APROVACAO_LABEL[r.tipoAprovacao] ?? r.tipoAprovacao}
+                    </span>
+                    <span className="font-serif text-base text-atlas-ink truncate">{r.fornecedor}</span>
+                    <span className="text-xs text-atlas-muted">
+                      SKU {r.produtoCodigoAcxe}
+                      {r.galpao && <> · {labelGalpao(r.galpao)}</>}
+                      {r.empresa && <> · {r.empresa.toUpperCase()}</>}
+                    </span>
+                  </div>
+                  <div className="text-xs text-red-700 dark:text-red-300 italic truncate">
+                    "{r.motivoRejeicao || 'sem motivo registrado'}"
+                  </div>
+                </div>
+                <div className="text-right text-xs text-atlas-muted whitespace-nowrap">
+                  {fmtKg(r.quantidadeRecebidaKg)} kg<br />
+                  rejeitado em {new Date(r.rejeitadoEm).toLocaleDateString('pt-BR')}
+                </div>
+                <div className="flex flex-col gap-1.5 whitespace-nowrap">
+                  {r.galpao && r.empresa ? (
+                    <button
+                      onClick={() => handleRelancarRejeicao(r)}
+                      disabled={dispensarMut.isPending}
+                      className="px-3 py-1.5 bg-atlas-btn-bg text-atlas-btn-text rounded text-xs font-medium hover:opacity-90"
+                    >
+                      Lançar novamente →
+                    </button>
+                  ) : null}
+                  <button
+                    onClick={() => {
+                      if (confirm(`Descartar esta rejeição da sua caixa de entrada?\n\nO histórico permanece para auditoria — você só não vai ver mais aqui.`)) {
+                        dispensarMut.mutate(r.id);
+                      }
+                    }}
+                    disabled={dispensarMut.isPending}
+                    className="px-3 py-1.5 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded text-xs font-medium hover:bg-slate-50 dark:hover:bg-slate-800"
+                  >
+                    Descartar
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

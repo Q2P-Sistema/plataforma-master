@@ -181,6 +181,35 @@ function ProtectedShell() {
     },
   });
 
+  // Contador de rejeicoes pendentes do operador — quebrado entre recebimento (tem
+  // loteId) e saida manual (nao tem). Cada badge aparece no item da sidebar
+  // correspondente: o operador ve um sino vermelho quando tem coisa esperando dele.
+  const { data: minhasRejeicoes = { recebimento: 0, saidaManual: 0 } } = useQuery<{
+    recebimento: number;
+    saidaManual: number;
+  }>({
+    queryKey: ['stockbridge', 'minhas-rejeicoes', 'count'],
+    enabled: !!user, // todos os perfis tem acesso a propria caixa de rejeicoes
+    refetchInterval: 30_000,
+    queryFn: async () => {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (csrfToken) headers['x-csrf-token'] = csrfToken;
+      const res = await fetch('/api/v1/stockbridge/aprovacoes/minhas-rejeicoes', {
+        credentials: 'include',
+        headers,
+      });
+      if (!res.ok) return { recebimento: 0, saidaManual: 0 };
+      const body = (await res.json()) as {
+        data: Array<{ loteId: string | null }>;
+      };
+      const lista = Array.isArray(body.data) ? body.data : [];
+      return {
+        recebimento: lista.filter((r) => r.loteId !== null).length,
+        saidaManual: lista.filter((r) => r.loteId === null).length,
+      };
+    },
+  });
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-atlas-bg">
@@ -203,9 +232,12 @@ function ProtectedShell() {
     return null;
   }
 
-  const stockbridgeSubItems = STOCKBRIDGE_SUB_ITEMS.map((s) =>
-    s.id === 'sb-aprovacoes' ? { ...s, badge: aprovacoesCount } : s,
-  );
+  const stockbridgeSubItems = STOCKBRIDGE_SUB_ITEMS.map((s) => {
+    if (s.id === 'sb-aprovacoes') return { ...s, badge: aprovacoesCount };
+    if (s.id === 'sb-fila') return { ...s, badge: minhasRejeicoes.recebimento };
+    if (s.id === 'sb-saida-manual') return { ...s, badge: minhasRejeicoes.saidaManual };
+    return s;
+  });
 
   const sidebarModules = modules.map((m: ModuleInfo) => ({
     id: m.id,
