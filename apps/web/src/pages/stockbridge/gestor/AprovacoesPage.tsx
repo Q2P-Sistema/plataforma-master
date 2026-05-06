@@ -50,8 +50,21 @@ function useApiFetch() {
     const headers: Record<string, string> = { 'Content-Type': 'application/json', ...(opts.headers as Record<string, string>) };
     if (csrfToken) headers['x-csrf-token'] = csrfToken;
     const res = await fetch(url, { credentials: 'include', ...opts, headers });
-    const body = (await res.json()) as { data: unknown; error: { message?: string } | null };
-    if (!res.ok) throw new Error(body.error?.message ?? 'Erro');
+    // Body pode estar vazio (server reiniciou no meio do request, proxy timeout,
+    // 204, etc). Ler como texto e parsear defensivamente para nao mascarar o
+    // status real com "Unexpected end of JSON input".
+    const text = await res.text();
+    let body: { data: unknown; error: { message?: string } | null } = { data: null, error: null };
+    if (text) {
+      try {
+        body = JSON.parse(text);
+      } catch {
+        throw new Error(`HTTP ${res.status}: resposta nao-JSON (${text.slice(0, 120)})`);
+      }
+    }
+    if (!res.ok) {
+      throw new Error(body.error?.message ?? `HTTP ${res.status} sem body — servidor pode ter reiniciado, tente novamente`);
+    }
     return body;
   };
 }
