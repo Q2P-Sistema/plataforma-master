@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from 'express';
-import { requireAuth } from '@atlas/auth';
+import { requireAuth, requireModule } from '@atlas/auth';
 import { createLogger } from '@atlas/core';
 import filaRouter from './fila.routes.js';
 import recebimentoRouter from './recebimento.routes.js';
@@ -20,8 +20,8 @@ import operacoesPendentesRouter from './operacoes-pendentes.routes.js';
 const logger = createLogger('stockbridge:routes');
 const router: Router = Router();
 
-// Todas as rotas do StockBridge exigem autenticacao
-router.use('/api/v1/stockbridge', requireAuth);
+// Todas as rotas do StockBridge exigem autenticacao + acesso ao modulo
+router.use('/api/v1/stockbridge', requireAuth, requireModule('stockbridge'));
 
 // Health check
 router.get('/api/v1/stockbridge/health', (_req: Request, res: Response) => {

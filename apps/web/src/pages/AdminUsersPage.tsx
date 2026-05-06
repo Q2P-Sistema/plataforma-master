@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type ChangeEvent } from 'react';
+import { useEffect, useState, type FormEvent, type ChangeEvent } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DataTable, Modal, type Column } from '@atlas/ui';
 import { UserPlus, Edit2, UserX, UserCheck, KeyRound, ShieldOff } from 'lucide-react';
@@ -25,6 +25,16 @@ const STATUS_LABELS: Record<string, string> = {
   active: 'Ativo',
   inactive: 'Inativo',
 };
+
+const MODULE_OPTIONS: { id: string; name: string }[] = [
+  { id: 'hedge', name: 'Hedge Engine' },
+  { id: 'stockbridge', name: 'StockBridge' },
+  { id: 'breakingpoint', name: 'Breaking Point' },
+  { id: 'forecast', name: 'Forecast' },
+  { id: 'clevel', name: 'C-Level' },
+  { id: 'comexinsight', name: 'ComexInsight' },
+  { id: 'comexflow', name: 'ComexFlow' },
+];
 
 function useAdminFetch() {
   const csrfToken = useAuthStore((s) => s.csrfToken);
@@ -63,6 +73,7 @@ export function AdminUsersPage() {
   const [formName, setFormName] = useState('');
   const [formEmail, setFormEmail] = useState('');
   const [formRole, setFormRole] = useState('operador');
+  const [formModules, setFormModules] = useState<string[]>([]);
   const [formError, setFormError] = useState('');
 
   const { data: users = [], isLoading } = useQuery<AdminUser[]>({
@@ -74,11 +85,24 @@ export function AdminUsersPage() {
   });
 
   const createMutation = useMutation({
-    mutationFn: async (data: { name: string; email: string; role: string }) => {
-      return adminFetch('/api/v1/admin/users', {
+    mutationFn: async (data: {
+      name: string;
+      email: string;
+      role: string;
+      modules: string[];
+    }) => {
+      const body = await adminFetch('/api/v1/admin/users', {
         method: 'POST',
-        body: JSON.stringify(data),
+        body: JSON.stringify({ name: data.name, email: data.email, role: data.role }),
       });
+      // Diretor: backend ja ignora qualquer grant — pulamos a chamada.
+      if (data.role !== 'diretor') {
+        await adminFetch(`/api/v1/admin/users/${body.data.id}/modules`, {
+          method: 'PUT',
+          body: JSON.stringify({ modules: data.modules }),
+        });
+      }
+      return body;
     },
     onSuccess: (body) => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
@@ -90,18 +114,50 @@ export function AdminUsersPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, fields }: { id: string; fields: Record<string, string> }) => {
-      return adminFetch(`/api/v1/admin/users/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify(fields),
-      });
+    mutationFn: async ({
+      id,
+      fields,
+      modules,
+      role,
+    }: {
+      id: string;
+      fields: Record<string, string>;
+      modules?: string[];
+      role: string;
+    }) => {
+      let body: { data: AdminUser } | null = null;
+      if (Object.keys(fields).length > 0) {
+        body = await adminFetch(`/api/v1/admin/users/${id}`, {
+          method: 'PATCH',
+          body: JSON.stringify(fields),
+        });
+      }
+      if (modules !== undefined && role !== 'diretor') {
+        await adminFetch(`/api/v1/admin/users/${id}/modules`, {
+          method: 'PUT',
+          body: JSON.stringify({ modules }),
+        });
+      }
+      return body;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'user-modules'] });
       setEditUser(null);
       resetForm();
     },
     onError: (err: Error) => setFormError(err.message),
+  });
+
+  const editUserModulesQuery = useQuery<string[]>({
+    queryKey: ['admin', 'user-modules', editUser?.id],
+    enabled: !!editUser && editUser.role !== 'diretor',
+    queryFn: async () => {
+      const body = await adminFetch(
+        `/api/v1/admin/users/${editUser!.id}/modules`,
+      );
+      return (body.data?.modules ?? []) as string[];
+    },
   });
 
   const actionMutation = useMutation({
@@ -124,19 +180,38 @@ export function AdminUsersPage() {
     setFormName('');
     setFormEmail('');
     setFormRole('operador');
+    setFormModules([]);
     setFormError('');
   }
 
   function openEdit(user: AdminUser) {
     setFormName(user.name);
     setFormRole(user.role);
+    setFormModules([]);
     setFormError('');
     setEditUser(user);
   }
 
+  useEffect(() => {
+    if (editUserModulesQuery.data) {
+      setFormModules(editUserModulesQuery.data);
+    }
+  }, [editUserModulesQuery.data]);
+
+  function toggleModule(id: string) {
+    setFormModules((prev) =>
+      prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id],
+    );
+  }
+
   function handleCreate(e: FormEvent) {
     e.preventDefault();
-    createMutation.mutate({ name: formName, email: formEmail, role: formRole });
+    createMutation.mutate({
+      name: formName,
+      email: formEmail,
+      role: formRole,
+      modules: formModules,
+    });
   }
 
   function handleUpdate(e: FormEvent) {
@@ -145,11 +220,24 @@ export function AdminUsersPage() {
     const fields: Record<string, string> = {};
     if (formName !== editUser.name) fields.name = formName;
     if (formRole !== editUser.role) fields.role = formRole;
-    if (Object.keys(fields).length === 0) {
+
+    const currentModules = editUserModulesQuery.data ?? [];
+    const modulesChanged =
+      editUser.role !== 'diretor' &&
+      formRole !== 'diretor' &&
+      (currentModules.length !== formModules.length ||
+        currentModules.some((m) => !formModules.includes(m)));
+
+    if (Object.keys(fields).length === 0 && !modulesChanged) {
       setEditUser(null);
       return;
     }
-    updateMutation.mutate({ id: editUser.id, fields });
+    updateMutation.mutate({
+      id: editUser.id,
+      fields,
+      modules: modulesChanged ? formModules : undefined,
+      role: formRole,
+    });
   }
 
   const columns: Column<AdminUser>[] = [
@@ -296,7 +384,12 @@ export function AdminUsersPage() {
             </button>
             <button
               onClick={() =>
-                createMutation.mutate({ name: formName, email: formEmail, role: formRole })
+                createMutation.mutate({
+                  name: formName,
+                  email: formEmail,
+                  role: formRole,
+                  modules: formModules,
+                })
               }
               disabled={createMutation.isPending || !formName || !formEmail}
               className="px-4 py-2 rounded-lg bg-acxe text-white text-sm font-medium hover:bg-acxe/90 disabled:opacity-50 transition-colors"
@@ -342,6 +435,33 @@ export function AdminUsersPage() {
               <option value="diretor">Diretor</option>
             </select>
           </div>
+          {formRole !== 'diretor' ? (
+            <div>
+              <span className="block text-sm font-medium text-atlas-text mb-2">
+                Módulos acessíveis
+              </span>
+              <div className="grid grid-cols-2 gap-2">
+                {MODULE_OPTIONS.map((mod) => (
+                  <label
+                    key={mod.id}
+                    className="flex items-center gap-2 text-sm text-atlas-text cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={formModules.includes(mod.id)}
+                      onChange={() => toggleModule(mod.id)}
+                      className="rounded border-atlas-border focus:ring-2 focus:ring-acxe"
+                    />
+                    {mod.name}
+                  </label>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <p className="text-xs text-atlas-muted">
+              Diretor acessa todos os módulos automaticamente.
+            </p>
+          )}
           {formError && (
             <div className="text-sm text-crit bg-crit/10 border border-crit/20 rounded-lg px-3 py-2">
               {formError}
@@ -364,17 +484,9 @@ export function AdminUsersPage() {
               Cancelar
             </button>
             <button
-              onClick={() => {
-                if (!editUser) return;
-                const fields: Record<string, string> = {};
-                if (formName !== editUser.name) fields.name = formName;
-                if (formRole !== editUser.role) fields.role = formRole;
-                if (Object.keys(fields).length === 0) {
-                  setEditUser(null);
-                  return;
-                }
-                updateMutation.mutate({ id: editUser.id, fields });
-              }}
+              onClick={() =>
+                handleUpdate({ preventDefault: () => {} } as FormEvent)
+              }
               disabled={updateMutation.isPending}
               className="px-4 py-2 rounded-lg bg-acxe text-white text-sm font-medium hover:bg-acxe/90 disabled:opacity-50 transition-colors"
             >
@@ -408,6 +520,37 @@ export function AdminUsersPage() {
               <option value="diretor">Diretor</option>
             </select>
           </div>
+          {formRole !== 'diretor' ? (
+            <div>
+              <span className="block text-sm font-medium text-atlas-text mb-2">
+                Módulos acessíveis
+              </span>
+              {editUserModulesQuery.isLoading ? (
+                <p className="text-xs text-atlas-muted">Carregando módulos...</p>
+              ) : (
+                <div className="grid grid-cols-2 gap-2">
+                  {MODULE_OPTIONS.map((mod) => (
+                    <label
+                      key={mod.id}
+                      className="flex items-center gap-2 text-sm text-atlas-text cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={formModules.includes(mod.id)}
+                        onChange={() => toggleModule(mod.id)}
+                        className="rounded border-atlas-border focus:ring-2 focus:ring-acxe"
+                      />
+                      {mod.name}
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <p className="text-xs text-atlas-muted">
+              Diretor acessa todos os módulos automaticamente.
+            </p>
+          )}
           {formError && (
             <div className="text-sm text-crit bg-crit/10 border border-crit/20 rounded-lg px-3 py-2">
               {formError}
