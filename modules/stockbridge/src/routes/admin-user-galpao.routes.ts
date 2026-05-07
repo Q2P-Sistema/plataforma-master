@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 import { createLogger } from '@atlas/core';
-import { requireDiretor, requireGestor } from '../middleware/role.js';
+import { requireGestor } from '../middleware/role.js';
 import {
   listarUsuariosComGalpoes,
   setGalpoesDoUsuario,
@@ -14,7 +14,7 @@ const router: Router = Router();
 // GET /admin/user-galpao — lista todos os usuarios com seus galpoes vinculados
 router.get(
   '/api/v1/stockbridge/admin/user-galpao',
-  requireDiretor,
+  requireGestor,
   async (_req: Request, res: Response) => {
     try {
       const data = await listarUsuariosComGalpoes();
@@ -56,7 +56,7 @@ const PutBodySchema = z.object({
 // PUT /admin/user-galpao/:user_id — substitui completamente os galpoes do usuario
 router.put(
   '/api/v1/stockbridge/admin/user-galpao/:user_id',
-  requireDiretor,
+  requireGestor,
   async (req: Request, res: Response) => {
     const userId = req.params.user_id as string | undefined;
     if (!userId) {

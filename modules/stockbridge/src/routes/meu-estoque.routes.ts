@@ -5,6 +5,7 @@ import { requireOperador } from '../middleware/role.js';
 import {
   listarMeuEstoque,
   getGalpoesDoUsuario,
+  listarGalpoesFisicos,
   type EmpresaFiltro,
 } from '../services/meu-estoque.service.js';
 
@@ -54,8 +55,9 @@ router.get('/api/v1/stockbridge/meu-estoque', requireOperador, async (req: Reque
       return;
     }
   } else {
-    // gestor/diretor sem ?galpao= ve todos
-    galpoes = [];
+    // gestor/diretor sem ?galpao= ve todos os galpoes fisicos cadastrados
+    // (sem isso a UI fica com seletor vazio — issue 2026-05-07).
+    galpoes = await listarGalpoesFisicos();
   }
 
   try {

@@ -184,3 +184,20 @@ export async function getGalpoesDoUsuario(userId: string): Promise<string[]> {
     .catch(() => ({ rows: [] }));
   return res.rows.map((r) => r.galpao);
 }
+
+/**
+ * Lista todos os galpoes fisicos cadastrados em stockbridge.localidade
+ * (DISTINCT do campo galpao). Usado pra gestor/diretor sem vinculo escolher
+ * qual galpao filtrar — operador nao chama isso (cai em SEM_GALPAO_VINCULADO).
+ */
+export async function listarGalpoesFisicos(): Promise<string[]> {
+  const pool = getPool();
+  const res = await pool
+    .query<{ galpao: string }>(
+      `SELECT DISTINCT galpao FROM stockbridge.localidade
+        WHERE galpao IS NOT NULL AND ativo = true
+        ORDER BY galpao`,
+    )
+    .catch(() => ({ rows: [] }));
+  return res.rows.map((r) => r.galpao);
+}
