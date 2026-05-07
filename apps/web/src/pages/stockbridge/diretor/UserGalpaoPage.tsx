@@ -73,11 +73,13 @@ export function UserGalpaoPage() {
     setGalpoesEditando(new Set(user.galpoes));
   }
 
-  function toggleGalpao(galpao: string) {
-    const novo = new Set(galpoesEditando);
-    if (novo.has(galpao)) novo.delete(galpao);
-    else novo.add(galpao);
-    setGalpoesEditando(novo);
+  function toggleGalpao(galpao: string, marcar: boolean) {
+    setGalpoesEditando((prev) => {
+      const novo = new Set(prev);
+      if (marcar) novo.add(galpao);
+      else novo.delete(galpao);
+      return novo;
+    });
   }
 
   function salvar() {
@@ -173,20 +175,26 @@ export function UserGalpaoPage() {
               {galpoesDisponiveis.length === 0 && (
                 <div className="text-xs text-atlas-muted italic">Nenhum galpão cadastrado em stockbridge.localidade</div>
               )}
-              {galpoesDisponiveis.map((g) => (
-                <label key={g.galpao} className="flex items-start gap-3 p-2 rounded hover:bg-slate-50 dark:hover:bg-slate-900/30 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={galpoesEditando.has(g.galpao)}
-                    onChange={() => toggleGalpao(g.galpao)}
-                    className="mt-0.5"
-                  />
-                  <div className="flex-1">
-                    <div className="font-mono text-sm text-atlas-ink">{g.galpao}</div>
-                    <div className="text-[10px] text-atlas-muted">{g.localidades.join(' · ')}</div>
-                  </div>
-                </label>
-              ))}
+              {galpoesDisponiveis.map((g) => {
+                const checked = galpoesEditando.has(g.galpao);
+                return (
+                  <label
+                    key={g.galpao}
+                    className="flex items-start gap-3 p-2 rounded hover:bg-slate-50 dark:hover:bg-slate-900/30 cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={(e) => toggleGalpao(g.galpao, e.target.checked)}
+                      className="mt-0.5"
+                    />
+                    <div className="flex-1">
+                      <div className="font-mono text-sm text-atlas-ink">{g.galpao}</div>
+                      <div className="text-[10px] text-atlas-muted">{g.localidades.join(' · ')}</div>
+                    </div>
+                  </label>
+                );
+              })}
             </div>
 
             {salvarMutation.error && (
